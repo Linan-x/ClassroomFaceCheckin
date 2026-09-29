@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>签到台 - {{ meeting_name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+        .kiosk-full {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+        }
+        #video-feed {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        /* 全屏叠加层 — 只显示必要的 HUD 信息 */
+        .hud {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+        }
+        .hud > * { pointer-events: auto; }
+        /* 左上：会议名 + 截止时间 */
+        .hud-top-left {
+            position: absolute;
+            top: 30px; left: 30px;
+            display: flex; flex-direction: column; gap: 6px;
+        }
+        .hud-meeting {
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            font-size: 1.8rem; font-weight: 700;
+            color: #fff;
+            text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.5);
+            padding: 8px 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(4px);
+        }
+        .hud-deadline {
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            font-size: 1rem; font-weight: 600;
+            color: #fbbf24;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.4);
+            padding: 4px 14px;
+            border-radius: 8px;
+            display: none;
+        }
+        /* 右上：签到统计 */
+        .hud-top-right {
+            position: absolute;
+            top: 30px; right: 30px;
+            text-align: right;
+        }
+        .hud-count {
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            font-size: 3.5rem; font-weight: 800;
+            color: #6ee7b7;
+            text-shadow: 0 2px 16px rgba(0,0,0,0.8);
+            line-height: 1;
+        }
+        .hud-count .total {
+            font-size: 2rem;
+            color: #94a3b8;
+        }
+        .hud-rate {
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            font-size: 1.1rem;
+            color: #cbd5e1;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+            margin-top: 4px;
+        }
+        /* 底部：最近签到滚动条 */
+        .hud-bottom {
+            position: absolute;
+            bottom: 40px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; gap: 12px;
+            max-width: 90%;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .hud-name-tag {
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            font-size: 1.2rem; font-weight: 600;
+            color: #fff;
+            background: rgba(16, 185, 129, 0.85);
+            padding: 8px 20px;
+            border-radius: 30px;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            animation: tagIn 0.4s ease;
+        }
+        .hud-name-tag.late {
+            background: rgba(245, 158, 11, 0.85);
+        }
+        .hud-name-tag.unchecked-tag {
+            background: rgba(100, 116, 139, 0.6);
+            font-weight: 400;
+        }
+        @keyframes tagIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        /* 底部提示 */
+        .hud-hint {
+            position: absolute;
+            bottom: 12px; left: 50%;
+            transform: translateX(-50%);
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            font-size: 0.8rem;
+            color: rgba(148, 163, 184, 0.6);
+            text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        }
+        /* 开始按钮（居中的大按钮） */
+        .start-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+        }
+        .start-overlay .icon { font-size: 5rem; margin-bottom: 20px; }
+        .start-overlay h2 {
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            font-size: 2rem; color: #fff;
+            margin-bottom: 8px;
+        }
+        .start-overlay p {
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            font-size: 1rem; color: #94a3b8;
+            margin-bottom: 30px;
+        }
+        .start-btn {
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            font-size: 1.5rem; font-weight: 700;
+            padding: 20px 60px;
+            border-radius: 20px;
+            border: none;
+            background: #10b981;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 8px 30px rgba(16,185,129,0.3);
+        }
+        .start-btn:hover { transform: scale(1.05); background: #059669; }
+        .start-btn:active { transform: scale(0.98); }
+        /* 签到成功弹出动画 */
+        .checkin-popup {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            font-size: 4rem; font-weight: 800;
+            color: #fff;
+            background: rgba(16, 185, 129, 0.95);
+            padding: 40px 80px;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            z-index: 1000;
+            animation: popIn 0.4s ease;
+            text-align: center;
+            pointer-events: none;
+        }
+        .checkin-popup .sub {
+            font-size: 1.2rem;
+            font-weight: 400;
+            opacity: 0.8;
+            margin-top: 8px;
+        }
+        @keyframes popIn {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @keyframes popOut {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
+        }
+        /* 中央加载 */
+        .loading-spinner {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="kiosk-full">
+        <!-- 视频流 -->
+        <img id="video-feed" src="" alt="">
+
+        <!-- 开始前的覆盖层 -->
+        <div id="start-overlay" class="start-overlay">
+            <div class="icon">📷</div>
+            <h2>{{ meeting_name }}</h2>
+            <p id="start-hint">准备就绪</p>
+            <button class="start-btn" onclick="startCheckin()">▶ 开始签到</button>
+        </div>
+
+        <!-- HUD 叠加层（签到中显示） -->
+        <div id="hud" class="hud" style="display:none;">
+            <div class="hud-top-left">
+                <div class="hud-meeting">{{ meeting_name }}</div>
+                <div id="hud-deadline" class="hud-deadline"></div>
+            </div>
+            <div class="hud-top-right">
+                <div class="hud-count">
+                    <span id="hud-checked">0</span>
+                    <span class="total">/<span id="hud-total">0</span></span>
+                </div>
+                <div class="hud-rate" id="hud-rate">0%</div>
+            </div>
+            <div class="hud-bottom" id="hud-bottom"></div>
+            <div class="hud-hint">按 Esc 结束签到 ·
+                <span style="cursor:pointer;color:#94a3b8;text-decoration:underline;" onclick="switchToCode()">签到码</span> ·
+                <a href="/kiosk/{{ meeting_name }}/dashboard" target="_blank" style="color:#94a3b8;">大屏看板</a>
+            </div>
+        </div>
+
+        <!-- 签到成功弹出 -->
+        <div id="checkin-popup" class="checkin-popup" style="display:none;"></div>
+    </div>
+
+    <script>
+        const MEETING_NAME = '{{ meeting_name }}';
+        let pollInterval = null;
+        let isChecking = false;
+        let lastCheckinName = '';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 预先加载摄像头状态
+            fetch('/api/camera/test')
+                .then(r => r.json())
+                .then(d => {
+                    const hint = document.getElementById('start-hint');
+                    if (d.success) {
+                        hint.textContent = '✅ 摄像头就绪 · ' + (d.resolution || '');
+                    } else {
+                        hint.textContent = '⚠ ' + (d.error || '摄像头未就绪');
+                        hint.style.color = '#fbbf24';
+                    }
+                });
+            // 加载截止时间
+            fetch('/api/meeting/' + encodeURIComponent(MEETING_NAME) + '/checkin/deadline')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.deadline) {
+                        const el = document.getElementById('hud-deadline');
+                        el.textContent = '⏰ 截止 ' + d.deadline;
+                        el.style.display = 'block';
+                    }
+                });
+            // 加载会议信息
+            fetch('/api/meeting/' + encodeURIComponent(MEETING_NAME))
+                .then(r => r.json())
+                .then(d => {
+                    const total = d.expected_count || d.participant_count || 0;
+                    document.getElementById('hud-total').textContent = total;
+                });
+        });
+
+        // Esc 键停止签到
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isChecking) {
+                stopCheckin();
+            }
+        });
+
+        function startCheckin() {
+            const btn = document.querySelector('.start-btn');
+            const hint = document.getElementById('start-hint');
+            btn.disabled = true;
+            btn.textContent = '⏳ 启动摄像头...';
+            hint.textContent = '正在打开摄像头，请稍候...';
+            hint.style.color = '#fbbf24';
+            fetch('/api/meeting/' + encodeURIComponent(MEETING_NAME) + '/checkin/start', {
+                method: 'POST'
+            })
+            .then(function(r) {
+                // 检查响应状态
+                if (!r.ok) {
+                    return r.json().then(function(d) {
+                        throw new Error(d.error || 'HTTP ' + r.status);
+                    });
+                }
+                return r.json();
+            })
+            .then(function(d) {
+                if (d.error) {
+                    throw new Error(d.error);
+                }
+                // 启动成功
+                document.getElementById('start-overlay').style.display = 'none';
+                document.getElementById('hud').style.display = 'block';
+                document.getElementById('video-feed').src = '/video_feed/' + encodeURIComponent(MEETING_NAME) + '?t=' + Date.now();
+                isChecking = true;
+                // 开始轮询
+                if (pollInterval) clearInterval(pollInterval);
+                pollInterval = setInterval(pollStatus, 2000);
+                setTimeout(pollStatus, 500);
+            })
+            .catch(function(e) {
+                hint.textContent = '❌ ' + (e.message || '启动失败');
+                hint.style.color = '#ef4444';
+                btn.disabled = false;
+                btn.textContent = '🔄 重新尝试';
+            });
+        }
+
+        function stopCheckin() {
+            isChecking = false;
+            if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+            fetch('/api/meeting/' + encodeURIComponent(MEETING_NAME) + '/checkin/stop', {
+                method: 'POST'
+            }).then(() => {
+                document.getElementById('video-feed').src = '';
+                document.getElementById('start-overlay').style.display = 'flex';
+                document.getElementById('hud').style.display = 'none';
+                document.querySelector('.start-btn').disabled = false;
+                document.querySelector('.start-btn').textContent = '▶ 开始签到';
+            });
+        }
+
+        let prevCheckedCount = 0;
+        let showPopupTimeout = null;
+        let recentCheckinQueue = [];  // 最近签到队列，用于滚动显示
+
+        function pollStatus() {
+            fetch('/api/meeting/' + encodeURIComponent(MEETING_NAME) + '/checkin/status')
+                .then(r => r.json())
+                .then(d => {
+                    const checked = d.checked_in || 0;
+                    const total = d.total || 0;
+                    const rate = total > 0 ? Math.round(checked / total * 100) : 0;
+
+                    document.getElementById('hud-checked').textContent = checked;
+                    document.getElementById('hud-total').textContent = total;
+                    document.getElementById('hud-rate').textContent = rate + '%';
+
+                    // 检测新签到 → 加入队列（不阻塞，连续显示）
+                    if (checked > prevCheckedCount) {
+                        // 有新的签到
+                        if (d.records && d.records.length > 0) {
+                            const newRecords = d.records.slice(prevCheckedCount > 0 ? -(checked - prevCheckedCount) : 0);
+                            newRecords.forEach(function(rec) {
+                                if (rec && rec.name) {
+                                    recentCheckinQueue.push(rec);
+                                    showRollingPopup(rec);
+                                }
+                            });
+                        }
+                        prevCheckedCount = checked;
+                    }
+
+                    // 底部滚动标签：显示所有已签到+少数未签到
+                    const bottom = document.getElementById('hud-bottom');
+                    const checkedNames = d.checked_names || [];
+                    const uncheckedNames = d.unchecked_names || [];
+                    // 所有已签到者标签（绿色）
+                    let tags = checkedNames.slice(-20).map(n =>
+                        `<span class="hud-name-tag">✅ ${escHtml(n)}</span>`
+                    );
+                    // 未签到者只显示少数（灰色）
+                    let showUnchecked = uncheckedNames.filter(function(n) { return !checkedNames.includes(n); });
+                    if (showUnchecked.length <= 3) {
+                        tags = tags.concat(showUnchecked.map(n =>
+                            `<span class="hud-name-tag unchecked-tag">⏳ ${escHtml(n)}</span>`
+                        ));
+                    }
+                    bottom.innerHTML = tags.join('');
+                });
+        }
+
+        // 滚动弹出通知：不阻塞，连续多条时依次显示
+        let rollingActive = false;
+        function showRollingPopup(record) {
+            var popup = document.getElementById('checkin-popup');
+            var name = record.name;
+            var late = record.late || false;
+            var lateMin = record.late_minutes || 0;
+
+            var text = '✅ ' + name;
+            var sub = '签到成功';
+            if (late) {
+                text = '⏰ ' + name;
+                sub = '迟到 ' + lateMin + ' 分钟';
+            }
+            popup.innerHTML = text + '<div class="sub">' + sub + '</div>';
+            popup.style.background = late ? 'rgba(245, 158, 11, 0.95)' : 'rgba(16, 185, 129, 0.95)';
+            popup.style.display = 'block';
+            popup.style.animation = 'popIn 0.4s ease';
+
+            if (showPopupTimeout) clearTimeout(showPopupTimeout);
+            showPopupTimeout = setTimeout(function() {
+                popup.style.animation = 'popOut 0.3s ease';
+                setTimeout(function() { popup.style.display = 'none'; }, 300);
+                showPopupTimeout = null;
+                // 如果队列中还有未显示的签到，继续弹出
+                if (recentCheckinQueue.length > 0) {
+                    var next = recentCheckinQueue.shift();
+                    showRollingPopup(next);
+                }
+            }, 1800);
+        }
+
+        function switchToCode() {
+            if (isChecking) {
+                stopCheckin();
+            }
+            window.location.href = '/kiosk/' + encodeURIComponent(MEETING_NAME) + '/code';
+        }
+
+        function escHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+    </script>
+</body>
+</html>

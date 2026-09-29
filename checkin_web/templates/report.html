@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}签到报告 - {{ meeting_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+    <a href="/meeting/{{ meeting_name }}" class="btn btn-text">← 返回会议</a>
+    <h1>📊 签到报告 — {{ meeting_name }}</h1>
+    <div class="header-actions">
+        <button class="btn btn-outline" onclick="exportCSV()">📥 导出 CSV</button>
+        <button class="btn btn-outline" onclick="exportHTML()">📥 导出 HTML</button>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="stats-row" id="report-stats">
+    <div class="loading">加载中...</div>
+</div>
+
+<!-- 签到明细 -->
+<div class="card">
+    <div class="card-header"><h2>签到明细</h2></div>
+    <div class="table-wrapper">
+        <table class="table" id="detail-table">
+            <thead>
+                <tr><th>姓名</th><th>签到时间</th><th>状态</th><th>置信度</th></tr>
+            </thead>
+            <tbody id="detail-body">
+                <tr><td colspan="4" class="empty-cell">暂无签到记录</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 签到状态总览 -->
+<div class="card">
+    <div class="card-header"><h2>签到状态</h2></div>
+    <div class="table-wrapper">
+        <table class="table">
+            <thead><tr><th>状态</th><th>姓名</th></tr></thead>
+            <tbody id="status-body">
+                <tr><td colspan="2" class="empty-cell">加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MEETING_NAME = '{{ meeting_name }}';
+document.addEventListener('DOMContentLoaded', loadReport);
+</script>
+{% endblock %}

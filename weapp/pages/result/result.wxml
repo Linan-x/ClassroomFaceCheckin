@@ -1,0 +1,58 @@
+<view class="page">
+  <view class="header">
+    <text class="title">📊 签到结果</text>
+    <text class="course-name">{{courseName}}</text>
+    <text wx:if="{{sessionName}}" class="session-name">{{sessionName}}</text>
+  </view>
+
+  <!-- 统计卡片 -->
+  <view class="stats-row">
+    <view class="stat-card">
+      <text class="stat-num">{{data.total}}</text>
+      <text class="stat-label">总人数</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-num green">{{data.checked_in}}</text>
+      <text class="stat-label">已签到</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-num yellow">{{data.unchecked.length}}</text>
+      <text class="stat-label">未签到</text>
+    </view>
+    <view class="stat-card">
+      <text class="stat-num blue">{{data.rate}}</text>
+      <text class="stat-label">签到率</text>
+    </view>
+  </view>
+
+  <view class="progress-bar" style="margin:0 16px;">
+    <view class="progress-fill" style="width:{{data.total > 0 ? (data.checked_in / data.total * 100) : 0}}%;"></view>
+  </view>
+
+  <!-- 已签到列表 -->
+  <view class="section">
+    <view class="section-title">✅ 已签到 ({{data.checked_in}})</view>
+    <view wx:if="{{data.checked_list.length === 0}}" class="empty-hint">暂无</view>
+    <view wx:for="{{data.checked_list}}" wx:key="*this" class="student-row checked">
+      <view class="student-avatar green">{{item[0]}}</view>
+      <text class="student-name">{{item}}</text>
+      <text class="student-status done">已签到</text>
+    </view>
+  </view>
+
+  <!-- 未签到列表 -->
+  <view class="section">
+    <view class="section-title">⏳ 未签到 ({{data.unchecked.length}})</view>
+    <view wx:if="{{data.unchecked.length === 0}}" class="empty-hint all-done">✅ 全员已签到</view>
+    <view wx:for="{{data.unchecked}}" wx:key="*this" class="student-row">
+      <view class="student-avatar gray">{{item[0]}}</view>
+      <text class="student-name">{{item}}</text>
+      <text class="student-status wait">未签到</text>
+    </view>
+  </view>
+
+  <view class="actions">
+    <button class="btn btn-outline" bindtap="copyDashboard">📤 分享大屏链接</button>
+    <button class="btn btn-primary" bindtap="goBack">🏠 返回课程列表</button>
+  </view>
+</view>

@@ -1,0 +1,61 @@
+<view class="page">
+  <!-- 顶部 -->
+  <view class="header">
+    <view class="header-left">
+      <text class="course-name">📖 {{courseName}}</text>
+      <text class="live-tag" wx:if="{{sessionName}}" style="font-size:0.65rem;">{{sessionName}}</text>
+      <text class="live-tag" wx:else>
+        <text class="dot"></text>
+        实时识别
+      </text>
+    </view>
+    <view class="header-right">
+      <text class="count">{{checkedCount}}/{{totalCount}}</text>
+    </view>
+  </view>
+
+  <!-- 摄像头 + 画布叠加层 -->
+  <view class="camera-wrapper">
+    <camera
+      class="camera-preview"
+      device-position="back"
+      flash="off"
+      binderror="cameraError"
+    ></camera>
+    <canvas
+      class="face-canvas"
+      id="faceCanvas"
+      type="2d"
+    ></canvas>
+    <!-- 状态叠加信息 -->
+    <view class="camera-overlay">
+      <text class="overlay-status {{recognizing ? 'active' : 'idle'}}">
+        {{recognizing ? '⏳ 检测中' : (faceCount > 0 ? '👤 ' + faceCount + ' 人' : '📷 等待检测')}}
+      </text>
+      <text class="overlay-speed" wx:if="{{lastSpeed}}">{{lastSpeed}}</text>
+    </view>
+  </view>
+
+  <!-- 底部实时结果 -->
+  <view class="result-list">
+    <scroll-view scroll-y class="result-scroll" scroll-with-animation>
+      <view wx:for="{{recentFaces}}" wx:key="index" class="face-item">
+        <view class="face-avatar">{{item.name ? item.name[0] : '?'}}</view>
+        <view class="face-info">
+          <text class="face-name" wx:if="{{item.name}}">{{item.name}}</text>
+          <text class="face-name unknown" wx:else>未识别</text>
+        </view>
+        <text class="face-status {{item.name ? 'success' : 'fail'}}">
+          {{item.name ? '已签到' : '未识别'}}
+        </text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 操作按钮 -->
+  <view class="actions">
+    <button class="btn btn-outline" bindtap="manualCapture">📸 补拍</button>
+    <button class="btn btn-danger" bindtap="endCheckin">⏹ 结束</button>
+    <button class="btn btn-success" bindtap="goResult">✅ 完成</button>
+  </view>
+</view>

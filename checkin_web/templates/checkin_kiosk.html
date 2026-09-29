@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}签到 - {{ meeting_name }}{% endblock %}
+{% block content %}
+<div class="kiosk-container">
+    <!-- 左侧：摄像头画面 -->
+    <div class="kiosk-video">
+        <a href="/meeting/{{ meeting_name }}" class="btn btn-text back-link">← 返回</a>
+        <div class="video-wrapper">
+            <img id="video-feed" src="" alt="摄像头画面">
+            <div id="video-placeholder" class="video-placeholder">
+                <div class="placeholder-icon">📷</div>
+                <p>点击下方"开始签到"启动摄像头</p>
+            </div>
+        </div>
+        <div class="video-controls">
+            <button id="btn-start" class="btn btn-success btn-lg" onclick="startCheckin()">
+                ▶ 开始签到
+            </button>
+            <button id="btn-stop" class="btn btn-danger btn-lg" style="display:none;" onclick="stopCheckin()">
+                ⏹ 结束签到
+            </button>
+        </div>
+    </div>
+
+    <!-- 右侧：签到状态面板 -->
+    <div class="kiosk-panel">
+        <div class="panel-header">
+            <h2>{{ meeting_name }}</h2>
+        </div>
+        <div class="panel-stats">
+            <div class="big-stat">
+                <span class="big-num" id="kiosk-checked">0</span>
+                <span class="big-divider">/</span>
+                <span class="big-total" id="kiosk-total">0</span>
+            </div>
+            <div class="progress-ring-container">
+                <svg class="progress-ring" width="120" height="120">
+                    <circle class="ring-bg" cx="60" cy="60" r="52" />
+                    <circle class="ring-fg" cx="60" cy="60" r="52" id="progress-circle" />
+                </svg>
+                <div class="ring-text" id="kiosk-rate">0%</div>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <h3 class="section-title">✅ 已签到 (<span id="kiosk-checked-count">0</span>)</h3>
+            <div class="name-list" id="checked-list">
+                <div class="empty-hint">暂无签到</div>
+            </div>
+        </div>
+
+        <div class="panel-section">
+            <h3 class="section-title">⭕ 未签到 (<span id="kiosk-unchecked-count">0</span>)</h3>
+            <div class="name-list" id="unchecked-list">
+                <div class="empty-hint">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 签到通知动画 -->
+        <div id="checkin-notification" class="checkin-notification" style="display:none;">
+            ✅ <span id="notif-name"></span> 签到成功！
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MEETING_NAME = '{{ meeting_name }}';
+let pollInterval = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 加载状态
+    loadCheckinStatus();
+    // 每2秒轮询状态
+    pollInterval = setInterval(loadCheckinStatus, 2000);
+});
+
+// 页面离开时停止轮询
+window.addEventListener('beforeunload', () => {
+    if (pollInterval) clearInterval(pollInterval);
+});
+</script>
+{% endblock %}

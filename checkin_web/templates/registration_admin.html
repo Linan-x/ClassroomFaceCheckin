@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自助注册管理</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #f1f5f9;
+            --card-bg: #fff;
+            --text: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+        }
+        body {
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 24px;
+        }
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+        }
+
+        /* 课程选择器 */
+        .course-selector {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+            background: var(--card-bg);
+            padding: 16px 20px;
+            border-radius: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        }
+        .course-selector label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+        .course-selector select {
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 2px solid var(--border);
+            background: var(--card-bg);
+            font-size: 1rem;
+            min-width: 200px;
+            flex: 1;
+            max-width: 350px;
+            outline: none;
+        }
+        .course-selector select:focus {
+            border-color: var(--primary);
+        }
+        .course-selector .stats-hint {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-left: auto;
+        }
+
+        /* 两列布局 */
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 768px) {
+            .two-col { grid-template-columns: 1fr; }
+            body { padding: 12px; }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .card-header h2 {
+            font-size: 1.05rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .card-body {
+            padding: 20px;
+        }
+
+        /* QR 区域 */
+        .qr-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .qr-box {
+            width: 200px;
+            height: 200px;
+            background: #f8fafc;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            border: 2px dashed var(--border);
+            overflow: hidden;
+        }
+        .qr-box img {
+            width: 180px;
+            height: 180px;
+        }
+        .qr-box .placeholder {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            text-align: center;
+            padding: 10px;
+        }
+        .qr-box .placeholder .icon {
+            font-size: 3rem;
+            margin-bottom: 8px;
+        }
+        .reg-url {
+            font-size: 0.8rem;
+            color: var(--primary);
+            word-break: break-all;
+            max-width: 100%;
+            margin-bottom: 12px;
+            background: #f0f5ff;
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* 操作按钮 */
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            text-decoration: none;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover { background: #059669; }
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--border);
+            color: var(--text-secondary);
+        }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* 学生列表 */
+        .student-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .student-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .student-item:last-child { border-bottom: none; }
+        .student-item .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #e0e7ff;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .student-item .info {
+            flex: 1;
+        }
+        .student-item .info .name {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .student-item .info .meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .student-item .time {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #94a3b8;
+        }
+        .empty-state .icon { font-size: 2.5rem; margin-bottom: 8px; }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #94a3b8;
+        }
+
+        /* Toast 通知 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 12px;
+            background: #1e293b;
+            color: #fff;
+            font-weight: 600;
+            z-index: 9999;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            animation: fadeInDown 0.3s ease;
+        }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        @keyframes fadeInDown {
+            0% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+            100% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 12px 8px;
+            background: #f8fafc;
+            border-radius: 10px;
+        }
+        .stat-item .num {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+        .stat-item .label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        .stat-item .num.primary { color: var(--primary); }
+        .stat-item .num.success { color: var(--success); }
+        .stat-item .num.warning { color: var(--warning); }
+
+        .print-area {
+            display: none;
+        }
+        @media print {
+            body { padding: 0; background: #fff; }
+            .course-selector, .btn, .btn-group, .reg-url { display: none !important; }
+            .two-col { grid-template-columns: 1fr; }
+            .card { box-shadow: none; border: 1px solid #ddd; break-inside: avoid; }
+            .print-area { display: block; text-align: center; margin-bottom: 20px; }
+            .print-area h2 { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+    <h1>📱 学生自助注册管理</h1>
+    <div class="subtitle">生成二维码供学生扫码，学生自拍+输入姓名即可自助注册</div>
+
+    <!-- 课程选择器 -->
+    <div class="course-selector">
+        <label>选择课程：</label>
+        <select id="course-select" onchange="loadCourseData()">
+            <option value="">— 请选择课程 —</option>
+        </select>
+        <span class="stats-hint" id="stats-hint"></span>
+    </div>
+
+    <!-- 主内容 -->
+    <div id="main-area">
+        <div class="empty-state" style="padding:60px 20px;">
+            <div class="icon">📋</div>
+            <p>请先选择课程</p>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast" style="display:none;"></div>
+
+    <script>
+        // ===== 初始化 =====
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCourseList();
+        });
+
+        function showToast(msg, type) {
+            var t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast ' + (type || '');
+            t.style.display = 'block';
+            setTimeout(function() { t.style.display = 'none'; }, 3000);
+        }
+
+        function escHtml(s) {
+            var d = document.createElement('div');
+            d.textContent = s; return d.innerHTML;
+        }
+
+        // ===== 加载课程列表 =====
+        function loadCourseList() {
+            var sel = document.getElementById('course-select');
+            fetch('/api/meetings').then(function(r) { return r.json(); }).then(function(meetings) {
+                sel.innerHTML = '<option value="">— 请选择课程 —</option>';
+                meetings.forEach(function(m) {
+                    var opt = document.createElement('option');
+                    opt.value = m.name;
+                    opt.textContent = m.name + (m.description ? ' (' + m.description + ')' : '');
+                    sel.appendChild(opt);
+                });
+            }).catch(function() {
+                sel.innerHTML = '<option value="">加载失败</option>';
+            });
+        }
+
+        // ===== 加载课程数据 =====
+        function loadCourseData() {
+            var name = document.getElementById('course-select').value;
+            var area = document.getElementById('main-area');
+            if (!name) {
+                area.innerHTML = '<div class="empty-state" style="padding:60px 20px;"><div class="icon">📋</div><p>请先选择课程</p></div>';
+                return;
+            }
+            area.innerHTML = '<div class="loading">加载中...</div>';
+
+            // 加载多个数据
+            Promise.all([
+                fetch('/api/meeting/' + encodeURIComponent(name) + '/report').then(function(r) { return r.json(); }).catch(function() { return null; }),
+                fetch('/api/meeting/' + encodeURIComponent(name) + '/participants').then(function(r) { return r.json(); }).catch(function() { return null; }),
+                fetch('/api/qr/' + encodeURIComponent(name)).then(function(r) { return r.json(); }).catch(function() { return null; })
+            ]).then(function(results) {
+                var stats = results[0] || {};
+                var participants = results[1] || [];
+                var qrInfo = results[2] || {};
+
+                var total = stats.total_participants || participants.length || 0;
+                var checked = stats.checked_in || 0;
+                var regUrl = qrInfo.url || window.location.origin + '/register/' + encodeURIComponent(name);
+
+                // 更新提示
+                document.getElementById('stats-hint').textContent = '已注册 ' + total + ' 人';
+
+                renderPage(name, regUrl, participants, stats);
+            }).catch(function() {
+                area.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
+            });
+        }
+
+        // ===== 渲染页面 =====
+        function renderPage(courseName, regUrl, participants, stats) {
+            var area = document.getElementById('main-area');
+
+            var html = '';
+
+            // ── 统计行 ──
+            var total = stats.total_participants || participants.length || 0;
+            var checked = stats.checked_in || 0;
+            var rate = total > 0 ? Math.round(checked / total * 100) : 0;
+            var unchecked = total - checked;
+
+            html += '<div class="stats-row">'
+                + '<div class="stat-item"><div class="num primary">' + total + '</div><div class="label">已注册学生</div></div>'
+                + '<div class="stat-item"><div class="num success">' + checked + '</div><div class="label">已签到</div></div>'
+                + '<div class="stat-item"><div class="num warning">' + unchecked + '</div><div class="label">未签到</div></div>'
+                + '<div class="stat-item"><div class="num" style="color:' + (rate >= 80 ? '#10b981' : rate > 0 ? '#f59e0b' : '#94a3b8') + ';">' + rate + '%</div><div class="label">签到率</div></div>'
+                + '</div>';
+
+            // ── 批量导入 ──
+            html += '<div class="card" style="margin-bottom:24px;">'
+                + '<div class="card-header"><h2>📦 按班级批量导入</h2></div>'
+                + '<div class="card-body">'
+                + '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">'
+                + '<div class="form-group" style="flex:1;min-width:150px;">'
+                + '<label>选择班级</label>'
+                + '<select id="batch-class-select" class="form-input" onchange="loadClassStudents()">'
+                + '<option value="">— 请选择班级 —</option>'
+                + '</select></div>'
+                + '<div class="form-group" style="flex:2;min-width:200px;">'
+                + '<label>导入到课程（可多选）</label>'
+                + '<div id="batch-course-checkboxes" style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0;">'
+                + '</div></div>'
+                + '<button class="btn btn-success" onclick="executeBatchImport()">📥 执行导入</button>'
+                + '</div>'
+                + '<div id="batch-student-preview" style="margin-top:12px;padding:12px;background:#f8fafc;border-radius:8px;display:none;">'
+                + '<div style="font-weight:600;margin-bottom:8px;">该班级学生：</div>'
+                + '<div id="batch-student-list"></div>'
+                + '</div>'
+                + '<div id="batch-result" style="margin-top:12px;display:none;"></div>'
+                + '</div>'
+                + '</div>';
+
+            // ── 两列布局 ──
+            html += '<div class="two-col">';
+
+            // 左侧：QR 码
+            html += '<div class="card">'
+                + '<div class="card-header"><h2>📷 注册二维码</h2></div>'
+                + '<div class="card-body">'
+                + '<div class="qr-area">'
+                + '<div class="qr-box" id="qr-box">'
+                + '<img id="qr-image" src="" style="display:none;">'
+                + '<div class="placeholder" id="qr-placeholder">'
+                + '<div class="icon">📸</div>'
+                + '<div>点击"生成二维码"</div>'
+                + '</div>'
+                + '</div>'
+                + '<div class="reg-url" id="reg-url-display">' + escHtml(regUrl) + '</div>'
+                + '<div class="btn-group">'
+                + '<button class="btn btn-primary" id="btn-generate-qr" onclick="generateQR(\'' + escHtml(courseName) + '\')">🔄 生成二维码</button>'
+                + '<a href="' + escHtml(regUrl) + '" target="_blank" class="btn btn-outline">🔗 打开注册页</a>'
+                + '<button class="btn btn-outline" onclick="copyUrl()">📋 复制链接</button>'
+                + '<button class="btn btn-outline" onclick="window.print()">🖨️ 打印</button>'
+                + '</div>'
+                + '</div>'
+                + '</div>'
+                + '</div>';
+
+            // 右侧：注册学生列表
+            html += '<div class="card">'
+                + '<div class="card-header"><h2>👤 注册学生 (' + (participants.length || total) + ')</h2>'
+                + '<div style="display:flex;gap:6px;">'
+                + '<button class="btn btn-outline btn-sm" onclick="refreshList(\'' + escHtml(courseName) + '\')">🔄 刷新</button>'
+                + '<button class="btn btn-outline btn-sm" onclick="openDetail(\'' + escHtml(courseName) + '\')">⚙️ 管理</button>'
+                + '</div>'
+                + '</div>'
+                + '<div class="card-body">'
+                + '<div class="student-list" id="student-list">';
+
+            if (!participants || !participants.length) {
+                html += '<div class="empty-state"><div class="icon">👤</div><p>暂无注册学生</p><p style="font-size:0.85rem;color:#94a3b8;margin-top:4px;">生成二维码让学生扫码自助注册</p></div>';
+            } else {
+                participants.forEach(function(p) {
+                    var initial = (p.name || '?')[0];
+                    var deptText = p.department ? ' · ' + p.department : '';
+                    var phoneText = p.phone ? ' · ' + p.phone : '';
+                    var regTime = p.created_at || p.reg_time || '';
+                    if (regTime) regTime = regTime.substring(0, 16);
+                    html += '<div class="student-item">'
+                        + '<div style="display:flex;align-items:center;flex:1;min-width:0;">'
+                        + '<div class="avatar">' + escHtml(initial) + '</div>'
+                        + '<div class="info">'
+                        + '<div class="name">' + escHtml(p.name) + '</div>'
+                        + '<div class="meta">' + escHtml(deptText) + escHtml(phoneText) + '</div>'
+                        + '</div>'
+                        + '</div>'
+                        + '<div class="time">' + (regTime || '') + '</div>'
+                        + '</div>';
+                });
+            }
+
+            html += '</div></div></div></div>';
+            html += '</div>'; // .two-col
+
+            area.innerHTML = html;
+            loadBatchClasses();
+            loadCourseCheckboxes();
+        }
+
+        // ===== 生成二维码 =====
+        function generateQR(courseName) {
+            var btn = document.getElementById('btn-generate-qr');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '⏳ 生成中...';
+            }
+
+            var baseUrl = window.location.origin;
+            var regUrl = baseUrl + '/register/' + encodeURIComponent(courseName);
+
+            // 更新 URL 显示
+            var urlDisplay = document.getElementById('reg-url-display');
+            if (urlDisplay) urlDisplay.textContent = regUrl;
+
+            // 生成 QR
+            var qrImg = document.getElementById('qr-image');
+            var placeholder = document.getElementById('qr-placeholder');
+            qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(regUrl);
+            qrImg.style.display = 'block';
+            qrImg.onload = function() {
+                if (placeholder) placeholder.style.display = 'none';
+                if (btn) { btn.disabled = false; btn.textContent = '🔄 重新生成'; }
+                showToast('二维码已生成', 'success');
+            };
+            qrImg.onerror = function() {
+                if (placeholder) placeholder.innerHTML = '<div style="color:#ef4444;">二维码加载失败<br>请使用链接</div>';
+                if (btn) { btn.disabled = false; btn.textContent = '🔄 重试'; }
+            };
+        }
+
+        // ===== 复制链接 =====
+        function copyUrl() {
+            var urlEl = document.getElementById('reg-url-display');
+            if (!urlEl) return;
+            var text = urlEl.textContent;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(function() {
+                    showToast('已复制链接', 'success');
+                }).catch(function() {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            showToast('已复制链接', 'success');
+        }
+
+        // ===== 刷新列表 =====
+        function refreshList(courseName) {
+            var list = document.getElementById('student-list');
+            if (list) list.innerHTML = '<div class="loading">刷新中...</div>';
+            fetch('/api/meeting/' + encodeURIComponent(courseName) + '/participants').then(function(r) { return r.json(); }).then(function(participants) {
+                var list = document.getElementById('student-list');
+                if (!list) return;
+                if (!participants || !participants.length) {
+                    list.innerHTML = '<div class="empty-state"><div class="icon">👤</div><p>暂无注册学生</p></div>';
+                    return;
+                }
+                var html = '';
+                participants.forEach(function(p) {
+                    var initial = (p.name || '?')[0];
+                    var deptText = p.department ? ' · ' + p.department : '';
+                    var phoneText = p.phone ? ' · ' + p.phone : '';
+                    var regTime = p.created_at || p.reg_time || '';
+                    if (regTime) regTime = regTime.substring(0, 16);
+                    html += '<div class="student-item">'
+                        + '<div style="display:flex;align-items:center;flex:1;min-width:0;">'
+                        + '<div class="avatar">' + escHtml(initial) + '</div>'
+                        + '<div class="info">'
+                        + '<div class="name">' + escHtml(p.name) + '</div>'
+                        + '<div class="meta">' + escHtml(deptText) + escHtml(phoneText) + '</div>'
+                        + '</div>'
+                        + '</div>'
+                        + '<div class="time">' + (regTime || '') + '</div>'
+                        + '</div>';
+                });
+                list.innerHTML = html;
+            }).catch(function() {
+                var list = document.getElementById('student-list');
+                if (list) list.innerHTML = '<div class="empty-state"><div class="icon">❌</div><p>加载失败</p></div>';
+            });
+        }
+
+        // ===== 打开课程详情管理 =====
+        function openDetail(courseName) {
+            window.location.href = '/meeting/' + encodeURIComponent(courseName);
+        }
+
+        // ===== 批量导入功能 =====
+
+        function loadBatchClasses() {
+            var sel = document.getElementById('batch-class-select');
+            if (!sel) return;
+            fetch('/api/classes').then(function(r) { return r.json(); }).then(function(data) {
+                sel.innerHTML = '<option value="">— 请选择班级 —</option>';
+                (data.classes || []).forEach(function(c) {
+                    var opt = document.createElement('option');
+                    opt.value = c; opt.textContent = c;
+                    sel.appendChild(opt);
+                });
+            });
+        }
+
+        function loadCourseCheckboxes() {
+            var div = document.getElementById('batch-course-checkboxes');
+            if (!div) return;
+            fetch('/api/meetings').then(function(r) { return r.json(); }).then(function(meetings) {
+                div.innerHTML = meetings.map(function(m) {
+                    return '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;padding:4px 10px;background:#f1f5f9;border-radius:6px;font-size:0.85rem;">'
+                        + '<input type="checkbox" value="' + escHtml(m.name) + '"> ' + escHtml(m.name) + '</label>';
+                }).join('');
+            });
+        }
+
+        function loadClassStudents() {
+            var className = document.getElementById('batch-class-select').value;
+            var preview = document.getElementById('batch-student-preview');
+            var list = document.getElementById('batch-student-list');
+            if (!className) { preview.style.display = 'none'; return; }
+
+            fetch('/api/class/' + encodeURIComponent(className) + '/students')
+            .then(function(r) { return r.json(); }).then(function(data) {
+                var students = data.students || [];
+                if (!students.length) {
+                    list.innerHTML = '<div style="color:#94a3b8;padding:8px 0;">暂无学生</div>';
+                } else {
+                    list.innerHTML = students.map(function(s) {
+                        var courses = (s.courses || []).join(', ') || '暂无';
+                        return '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #eee;">'
+                            + '<span><strong>' + escHtml(s.name) + '</strong></span>'
+                            + '<span style="color:#64748b;font-size:0.85rem;">已报名: ' + courses + '</span>'
+                            + '</div>';
+                    }).join('');
+                }
+                preview.style.display = 'block';
+            }).catch(function() {
+                preview.style.display = 'none';
+            });
+        }
+
+        function executeBatchImport() {
+            var className = document.getElementById('batch-class-select').value;
+            if (!className) { showToast('请选择班级', 'error'); return; }
+            var checkedCourses = [];
+            document.querySelectorAll('#batch-course-checkboxes input:checked').forEach(function(cb) {
+                checkedCourses.push(cb.value);
+            });
+            if (!checkedCourses.length) { showToast('请选择目标课程', 'error'); return; }
+
+            var btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '⏳ 导入中...';
+
+            fetch('/api/batch/enroll', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({class_name: className, courses: checkedCourses})
+            }).then(function(r) { return r.json(); }).then(function(data) {
+                var resultDiv = document.getElementById('batch-result');
+                resultDiv.style.display = 'block';
+                if (data.success) {
+                    var html = '<div style="padding:12px;background:#f0fdf4;border-radius:8px;color:#166534;">✅ 导入完成！</div>';
+                    for (var cn in data.results) {
+                        var r = data.results[cn];
+                        html += '<div style="margin-top:8px;padding:8px 12px;background:#f8fafc;border-radius:6px;">'
+                            + '<strong>' + escHtml(cn) + '</strong>: 成功导入 ' + (r.count || (r.added && r.added.length) || 0) + ' 人</div>';
+                    }
+                    resultDiv.innerHTML = html;
+                    showToast('批量导入完成', 'success');
+                    loadCourseData();
+                } else {
+                    resultDiv.innerHTML = '<div style="padding:12px;background:#fef2f2;border-radius:8px;color:#991b1b;">❌ ' + (data.error || '导入失败') + '</div>';
+                }
+                btn.disabled = false;
+                btn.textContent = '📥 执行导入';
+            }).catch(function() {
+                showToast('网络错误', 'error');
+                btn.disabled = false;
+                btn.textContent = '📥 执行导入';
+            });
+        }
+    </script>
+</body>
+</html>

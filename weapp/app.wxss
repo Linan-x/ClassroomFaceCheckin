@@ -1,0 +1,51 @@
+/* 全局样式 - 浅色主题 */
+page {
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+  background: #f5f6fa;
+  color: #1e293b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* 按钮 */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 10px 20px; border-radius: 10px;
+  font-size: 14px; font-weight: 600; border: none;
+}
+.btn:active { opacity: 0.8; }
+.btn-primary { background: #2563eb; color: #fff; }
+.btn-success { background: #10b981; color: #fff; }
+.btn-danger { background: #ef4444; color: #fff; }
+.btn-outline { background: #fff; border: 1.5px solid #e2e8f0; color: #475569; }
+.btn-sm { padding: 7px 14px; font-size: 13px; border-radius: 8px; }
+.btn-block { width: 100%; justify-content: center; margin-bottom: 8px; }
+
+/* 卡片 */
+.card {
+  background: #fff; border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
+/* 标签 */
+.tag {
+  display: inline-block; padding: 2px 10px; border-radius: 6px;
+  font-size: 11px; font-weight: 600;
+}
+.tag-green { background: #dcfce7; color: #166534; }
+.tag-red { background: #fef2f2; color: #991b1b; }
+
+/* 进度条 */
+.bar {
+  height: 5px; background: #e2e8f0; border-radius: 3px; overflow: hidden;
+}
+.bar-fill {
+  height: 100%; background: linear-gradient(90deg, #10b981, #34d399);
+  border-radius: 3px;
+}
+
+/* 空/加载状态 */
+.loading, .empty {
+  text-align: center; padding: 50px 20px; color: #94a3b8; font-size: 14px;
+}
+.loading .icon, .empty .icon { font-size: 36px; display: block; margin-bottom: 8px; }

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时签到 - {{ meeting_name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system,"Microsoft YaHei",sans-serif;
+            background: #0f172a; color: #e2e8f0;
+            width: 100vw; height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        .header {
+            padding: 20px 40px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid #1e293b;
+        }
+        .header .course-name {
+            font-size: 2rem; font-weight: 700;
+        }
+        .header .live-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 16px; border-radius: 20px;
+            background: rgba(16,185,129,0.15); color: #10b981;
+            font-size: 0.9rem; font-weight: 600;
+        }
+        .header .live-badge .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #10b981; animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .header .clock {
+            font-size: 1.5rem; font-weight: 600; color: #94a3b8;
+            font-family: "Courier New", monospace;
+        }
+
+        /* 统计栏 */
+        .stats-bar {
+            display: flex; gap: 0; padding: 20px 40px;
+            border-bottom: 1px solid #1e293b;
+            background: #0a0f1a;
+        }
+        .stat-item { flex: 1; text-align: center; }
+        .stat-item .num { font-size: 2.2rem; font-weight: 800; }
+        .stat-item .label { font-size: 0.85rem; color: #64748b; margin-top: 2px; }
+        .stat-item .num.green { color: #10b981; }
+        .stat-item .num.yellow { color: #f59e0b; }
+        .stat-item .num.red { color: #ef4444; }
+        .stat-item .num.blue { color: #2563eb; }
+
+        /* 进度条 */
+        .progress-wrap {
+            height: 6px; background: #1e293b; margin: 0;
+        }
+        .progress-fill {
+            height: 100%; background: linear-gradient(90deg, #10b981, #2563eb);
+            transition: width 0.5s ease; width: 0%;
+        }
+
+        /* 人员网格 */
+        .people-grid {
+            flex: 1; overflow-y: auto; padding: 20px 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 12px; align-content: start;
+        }
+        .people-grid::-webkit-scrollbar { width: 3px; }
+        .people-grid::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+        .person-card {
+            display: flex; flex-direction: column; align-items: center;
+            padding: 14px 6px 10px; border-radius: 14px;
+            text-align: center; transition: all 0.3s;
+        }
+        .person-card.checked {
+            background: rgba(16,185,129,0.12);
+            animation: cardIn 0.4s ease;
+        }
+        .person-card.unchecked { background: rgba(255,255,255,0.03); }
+        @keyframes cardIn {
+            0% { transform: scale(0.8); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .person-card .avatar {
+            width: 52px; height: 52px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; font-weight: 700; color: #fff;
+            margin-bottom: 6px;
+            position: relative; overflow: hidden;
+        }
+        .person-card.checked .avatar { background: #10b981; }
+        .person-card.unchecked .avatar { background: #475569; }
+
+        .person-card .pname {
+            font-size: 0.95rem; font-weight: 600;
+            max-width: 80px; overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .person-card .ptime {
+            font-size: 0.7rem; color: #94a3b8; margin-top: 1px;
+        }
+
+        .empty-state { text-align: center; padding: 60px; color: #64748b; grid-column: 1/-1; }
+
+        .footer {
+            padding: 10px 40px;
+            border-top: 1px solid #1e293b;
+            text-align: center; font-size: 0.8rem; color: #475569;
+        }
+
+        @media (max-width: 768px) {
+            .header { padding: 12px 16px; }
+            .header .course-name { font-size: 1.3rem; }
+            .stats-bar { padding: 12px 16px; }
+            .stat-item .num { font-size: 1.5rem; }
+            .people-grid { padding: 12px 16px; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+            .person-card .avatar { width: 40px; height: 40px; font-size: 1.2rem; }
+            .person-card .pname { font-size: 0.8rem; max-width: 60px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <span class="course-name">📖 {{ meeting_name }}</span>
+            <div style="margin-top:4px;"><a href="/screen" style="color:#64748b;font-size:0.75rem;text-decoration:none;">切换课程 →</a></div>
+        </div>
+        <div class="live-badge" id="live-badge"><span class="dot"></span>实时签到</div>
+        <div class="clock" id="clock">--:--:--</div>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="num blue" id="stat-total">0</div>
+            <div class="label">总人数</div>
+        </div>
+        <div class="stat-item">
+            <div class="num green" id="stat-checked">0</div>
+            <div class="label">已签到</div>
+        </div>
+        <div class="stat-item">
+            <div class="num yellow" id="stat-unchecked">0</div>
+            <div class="label">未签到</div>
+        </div>
+        <div class="stat-item">
+            <div class="num" id="stat-rate" style="color:#2563eb;">0%</div>
+            <div class="label">签到率</div>
+        </div>
+    </div>
+
+    <div class="progress-wrap">
+        <div class="progress-fill" id="progress-fill"></div>
+    </div>
+
+    <div class="people-grid" id="people-grid">
+        <div class="empty-state"><p>等待签到数据...</p></div>
+    </div>
+
+    <div class="footer">
+        <span>数据每 3 秒自动刷新 · 页面可投影到教室大屏</span>
+    </div>
+
+    <script>
+        const COURSE_NAME = '{{ meeting_name }}';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            loadData();
+            setInterval(loadData, 3000);
+        });
+
+        function updateClock() {
+            var d = new Date();
+            document.getElementById('clock').textContent =
+                String(d.getHours()).padStart(2,'0') + ':' +
+                String(d.getMinutes()).padStart(2,'0') + ':' +
+                String(d.getSeconds()).padStart(2,'0');
+        }
+
+        var sessionActive = true;
+
+        function loadData() {
+            fetch('/api/meeting/' + encodeURIComponent(COURSE_NAME) + '/checkin/status')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var checked = data.checked_names || [];
+                var unchecked = data.unchecked_names || [];
+                var total = data.total || 0;
+                var rate = total > 0 ? Math.round(checked.length / total * 100) : 0;
+
+                // 检查签到是否已结束
+                var badge = document.getElementById('live-badge');
+                if (data.session_name === null || data.session_name === undefined || data.session_name === '') {
+                    badge.innerHTML = '<span style="color:#ef4444;">签到已结束</span>';
+                    sessionActive = false;
+                } else {
+                    badge.innerHTML = '<span class="dot"></span>' + data.session_name;
+                    sessionActive = true;
+                }
+
+                document.getElementById('stat-total').textContent = total;
+                document.getElementById('stat-checked').textContent = checked.length;
+                document.getElementById('stat-unchecked').textContent = unchecked.length;
+                document.getElementById('stat-rate').textContent = rate + '%';
+                document.getElementById('progress-fill').style.width = rate + '%';
+
+                // 更新进度条颜色
+                var pf = document.getElementById('progress-fill');
+                if (rate >= 80) pf.style.background = 'linear-gradient(90deg, #10b981, #059669)';
+                else if (rate >= 50) pf.style.background = 'linear-gradient(90deg, #f59e0b, #10b981)';
+                else pf.style.background = 'linear-gradient(90deg, #ef4444, #f59e0b)';
+
+                var grid = document.getElementById('people-grid');
+                var html = '';
+
+                checked.forEach(function(n) {
+                    var firstChar = n.charAt(0) || '?';
+                    var photoUrl = '/api/global/students/' + encodeURIComponent(n) + '/photo';
+                    html += '<div class="person-card checked">'
+                        + '<div class="avatar" style="background:#10b981;overflow:hidden;" id="av-' + escHtml(n) + '">'
+                        + '<img src="' + photoUrl + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'" onload="document.getElementById(\'fb-' + escHtml(n) + '\').style.display=\'none\'">'
+                        + '<span id="fb-' + escHtml(n) + '" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">' + escHtml(firstChar) + '</span>'
+                        + '</div>'
+                        + '<div class="pname">' + escHtml(n) + '</div>'
+                        + '<div class="ptime">已签到</div>'
+                        + '</div>';
+                });
+
+                unchecked.forEach(function(n) {
+                    var firstChar = n.charAt(0) || '?';
+                    var photoUrl = '/api/global/students/' + encodeURIComponent(n) + '/photo';
+                    html += '<div class="person-card unchecked">'
+                        + '<div class="avatar" style="background:#475569;overflow:hidden;" id="av-' + escHtml(n) + '">'
+                        + '<img src="' + photoUrl + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'" onload="document.getElementById(\'fb-' + escHtml(n) + '\').style.display=\'none\'">'
+                        + '<span id="fb-' + escHtml(n) + '" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">' + escHtml(firstChar) + '</span>'
+                        + '</div>'
+                        + '<div class="pname">' + escHtml(n) + '</div>'
+                        + '<div class="ptime">未签到</div>'
+                        + '</div>';
+                });
+
+                if (!html) html = '<div class="empty-state"><p>暂无参与者</p></div>';
+                grid.innerHTML = html;
+            })
+            .catch(function() {
+                // silently retry
+            });
+        }
+
+        function escHtml(s) {
+            var d = document.createElement('div');
+            d.textContent = s; return d.innerHTML;
+        }
+    </script>
+</body>
+</html>

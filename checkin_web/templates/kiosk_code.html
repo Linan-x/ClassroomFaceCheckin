@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>签到码 - {{ meeting_name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; font-family: -apple-system,"Microsoft YaHei",sans-serif; color: #fff; }
+        .kiosk { display: flex; height: 100vh; }
+
+        /* 左侧: 扫码区 */
+        .qr-section {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 40px; border-right: 1px solid #1e293b;
+        }
+        .qr-section h1 { font-size: 1.8rem; margin-bottom: 16px; color: #e2e8f0; }
+        .qr-section .qr-box {
+            background: #fff; padding: 20px; border-radius: 20px;
+            width: 320px; height: 320px; display: flex;
+            align-items: center; justify-content: center;
+        }
+        .qr-section .qr-box img { width: 280px; height: 280px; }
+        .qr-section .qr-url {
+            margin-top: 16px; font-size: 0.85rem; color: #64748b;
+            word-break: break-all; text-align: center; max-width: 400px;
+        }
+        .qr-section .hint {
+            margin-top: 12px; font-size: 1.1rem; color: #94a3b8;
+        }
+        .qr-section .switch-btn {
+            margin-top: 24px; padding: 12px 32px; border-radius: 12px;
+            border: 1px solid #334155; background: transparent;
+            color: #94a3b8; font-size: 1rem; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .qr-section .switch-btn:hover { border-color: #10b981; color: #10b981; }
+
+        /* 右侧: 数字键盘 */
+        .numpad-section {
+            flex: 1; display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 40px;
+        }
+        .numpad-section .header {
+            text-align: center; margin-bottom: 30px;
+        }
+        .numpad-section .header h2 { font-size: 1.5rem; font-weight: 600; }
+        .numpad-section .header .meeting-name { color: #64748b; font-size: 1rem; margin-top: 4px; }
+        .numpad-section .header .hint { color: #fbbf24; font-size: 0.9rem; margin-top: 8px; }
+
+        .code-display {
+            background: #1e293b; border-radius: 16px; padding: 20px 40px;
+            margin-bottom: 30px; min-height: 80px; display: flex;
+            align-items: center; justify-content: center;
+            border: 2px solid #334155; width: 320px;
+        }
+        .code-display .digits {
+            font-size: 3.5rem; font-weight: 800; letter-spacing: 16px;
+            font-family: "Courier New", monospace;
+            color: #e2e8f0;
+        }
+        .code-display .digits.placeholder { color: #475569; }
+
+        .numpad-grid {
+            display: grid; grid-template-columns: repeat(3, 100px);
+            gap: 14px; justify-content: center;
+        }
+        .num-key {
+            width: 100px; height: 80px; border-radius: 16px;
+            border: none; font-size: 2rem; font-weight: 700;
+            background: #1e293b; color: #e2e8f0; cursor: pointer;
+            transition: all 0.1s; display: flex; align-items: center;
+            justify-content: center; user-select: none;
+        }
+        .num-key:active { transform: scale(0.92); background: #334155; }
+        .num-key.special { background: #334155; font-size: 1.4rem; }
+        .num-key.special:active { background: #475569; }
+        .num-key.confirm { background: #10b981; color: #fff; font-size: 1.2rem; }
+        .num-key.confirm:active { background: #059669; }
+        .num-key.clear { background: #ef4444; color: #fff; font-size: 1.2rem; }
+        .num-key.clear:active { background: #dc2626; }
+        .num-key:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* 签到反馈 */
+        .feedback {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 40px 60px; border-radius: 24px;
+            z-index: 100; text-align: center; display: none;
+            animation: popIn 0.3s ease;
+        }
+        .feedback.success { background: rgba(16,185,129,0.95); }
+        .feedback.error { background: rgba(239,68,68,0.95); }
+        .feedback .icon { font-size: 3rem; margin-bottom: 12px; }
+        .feedback .msg { font-size: 1.6rem; font-weight: 700; }
+        .feedback .sub { font-size: 1rem; opacity: 0.8; margin-top: 4px; }
+        @keyframes popIn {
+            0% { transform: translate(-50%,-50%) scale(0.5); opacity: 0; }
+            100% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+        }
+        @keyframes popOut {
+            0% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%,-50%) scale(1.2); opacity: 0; }
+        }
+
+        /* 手机响应式 */
+        @media (max-width: 768px) {
+            .kiosk { flex-direction: column; }
+            .qr-section { border-right: none; border-bottom: 1px solid #1e293b; padding: 20px; }
+            .qr-section .qr-box { width: 180px; height: 180px; }
+            .qr-section .qr-box img { width: 160px; height: 160px; }
+            .numpad-section { padding: 20px; }
+            .numpad-grid { grid-template-columns: repeat(3, 80px); gap: 10px; }
+            .num-key { width: 80px; height: 64px; font-size: 1.6rem; }
+            .code-display { width: 260px; }
+            .code-display .digits { font-size: 2.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="kiosk">
+        <!-- 左侧: 扫码签到 -->
+        <div class="qr-section">
+            <h1>📱 扫码签到</h1>
+            <div class="qr-box">
+                <img id="qr-code" src="" alt="QR Code">
+            </div>
+            <div class="qr-url" id="qr-url"></div>
+            <div class="hint">用手机扫码快速签到</div>
+            <button class="switch-btn" onclick="switchToFace()">📸 切换至人脸签到</button>
+        </div>
+
+        <!-- 右侧: 数字键盘 -->
+        <div class="numpad-section">
+            <div class="header">
+                <h2>🔢 输入签到码</h2>
+                <div class="meeting-name">{{ meeting_name }}</div>
+                <div class="hint">请输入您的 4 位数字签到码</div>
+            </div>
+
+            <div class="code-display">
+                <span class="digits placeholder" id="code-display">_ _ _ _</span>
+            </div>
+
+            <div class="numpad-grid">
+                <button class="num-key" onclick="pressKey('1')">1</button>
+                <button class="num-key" onclick="pressKey('2')">2</button>
+                <button class="num-key" onclick="pressKey('3')">3</button>
+                <button class="num-key" onclick="pressKey('4')">4</button>
+                <button class="num-key" onclick="pressKey('5')">5</button>
+                <button class="num-key" onclick="pressKey('6')">6</button>
+                <button class="num-key" onclick="pressKey('7')">7</button>
+                <button class="num-key" onclick="pressKey('8')">8</button>
+                <button class="num-key" onclick="pressKey('9')">9</button>
+                <button class="num-key clear" onclick="clearCode()">⌫</button>
+                <button class="num-key" onclick="pressKey('0')">0</button>
+                <button class="num-key confirm" id="btn-confirm" onclick="submitCode()" disabled>✓<br><span style="font-size:0.7rem;">签到</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 签到反馈弹窗 -->
+    <div id="feedback" class="feedback">
+        <div class="icon" id="fb-icon"></div>
+        <div class="msg" id="fb-msg"></div>
+        <div class="sub" id="fb-sub"></div>
+    </div>
+
+    <script>
+        const MEETING_NAME = '{{ meeting_name }}';
+        let code = '';
+        let isProcessing = false;
+        let feedbackTimer = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置 QR Code
+            var baseUrl = window.location.origin;
+            var checkinUrl = baseUrl.replace('/kiosk/', '/checkin/') + '?m=' + encodeURIComponent(MEETING_NAME);
+            // 修正URL
+            checkinUrl = baseUrl + '/checkin/' + encodeURIComponent(MEETING_NAME);
+            document.getElementById('qr-url').textContent = '打开手机扫码访问';
+            document.getElementById('qr-code').src = 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' + encodeURIComponent(checkinUrl);
+            document.getElementById('qr-code').onerror = function() {
+                this.style.display = 'none';
+            };
+        });
+
+        // 键盘支持
+        document.addEventListener('keydown', function(e) {
+            if (e.key >= '0' && e.key <= '9') { pressKey(e.key); }
+            else if (e.key === 'Backspace') { clearCode(); }
+            else if (e.key === 'Enter') { submitCode(); }
+            else if (e.key === 'Escape') { switchToFace(); }
+        });
+
+        function pressKey(digit) {
+            if (isProcessing || code.length >= 6) return;
+            code += digit;
+            updateDisplay();
+        }
+
+        function clearCode() {
+            code = code.slice(0, -1);
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            var display = document.getElementById('code-display');
+            if (code.length === 0) {
+                display.textContent = '_ _ _ _';
+                display.className = 'digits placeholder';
+            } else {
+                display.textContent = code + ' '.repeat(Math.max(0, 6 - code.length));
+                display.className = 'digits';
+            }
+            document.getElementById('btn-confirm').disabled = code.length < 4;
+        }
+
+        function submitCode() {
+            if (code.length < 4 || isProcessing) return;
+            isProcessing = true;
+            document.getElementById('btn-confirm').disabled = true;
+
+            fetch('/api/meeting/' + encodeURIComponent(MEETING_NAME) + '/checkin-by-code', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({code: code})
+            })
+            .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+            .then(function(res) {
+                if (res.ok && res.data.success) {
+                    showFeedback('success', '✅ ' + (res.data.record ? res.data.record.name : ''),
+                                 '签到成功！');
+                } else if (res.data.error === '您已签到，无需重复签到') {
+                    showFeedback('success', '✅ 已签到', '您已经签过到了');
+                } else {
+                    showFeedback('error', '❌ ' + (res.data.error || '签到失败'),
+                                 '请重试或使用人脸签到');
+                }
+            })
+            .catch(function() {
+                showFeedback('error', '❌ 网络错误', '请重试');
+            })
+            .then(function() {
+                code = '';
+                updateDisplay();
+                isProcessing = false;
+            });
+        }
+
+        function showFeedback(type, msg, sub) {
+            var fb = document.getElementById('feedback');
+            document.getElementById('fb-icon').textContent = type === 'success' ? '✅' : '❌';
+            document.getElementById('fb-msg').textContent = msg;
+            document.getElementById('fb-sub').textContent = sub || '';
+            fb.className = 'feedback ' + type;
+            fb.style.display = 'block';
+            fb.style.animation = 'popIn 0.3s ease';
+            if (feedbackTimer) clearTimeout(feedbackTimer);
+            feedbackTimer = setTimeout(function() {
+                fb.style.animation = 'popOut 0.3s ease';
+                setTimeout(function() { fb.style.display = 'none'; }, 300);
+            }, 2500);
+        }
+
+        function switchToFace() {
+            window.location.href = '/kiosk/' + encodeURIComponent(MEETING_NAME);
+        }
+    </script>
+</body>
+</html>

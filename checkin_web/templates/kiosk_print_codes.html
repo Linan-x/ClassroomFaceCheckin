@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>签到码 - {{ meeting_name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system,"Microsoft YaHei",sans-serif; padding: 40px; background: #fff; color: #1e293b; }
+        h1 { font-size: 1.6rem; margin-bottom: 4px; }
+        .sub { color: #64748b; font-size: 0.9rem; margin-bottom: 24px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px 14px; border-bottom: 2px solid #e2e8f0; font-size: 0.85rem; color: #64748b; font-weight: 600; }
+        td { padding: 10px 14px; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+        .code { font-family: "Courier New", monospace; font-size: 1.2rem; font-weight: 800; letter-spacing: 2px; color: #2563eb; }
+        .print-btn { margin-bottom: 20px; padding: 10px 24px; border-radius: 8px; border: none; background: #2563eb; color: #fff; font-size: 1rem; cursor: pointer; }
+        .print-btn:hover { background: #1d4ed8; }
+        .hint { margin-top: 20px; font-size: 0.85rem; color: #94a3b8; }
+        @media print {
+            .print-btn { display: none; }
+            body { padding: 20px; }
+            th { font-size: 0.75rem; }
+            td { padding: 6px 10px; }
+        }
+    </style>
+</head>
+<body>
+    <button class="print-btn" onclick="window.print()">🖨️ 打印签到码</button>
+    <h1>📋 {{ meeting_name }} — 签到码</h1>
+    <div class="sub">共 {{ items|length }} 人 · 请在签到台输入 4 位签到码签到</div>
+    <table>
+        <thead>
+            <tr><th>序号</th><th>姓名</th><th>签到码</th></tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td style="color:#94a3b8;">{{ loop.index }}</td>
+                <td><strong>{{ item.name }}</strong></td>
+                <td class="code">{{ item.code }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="hint">也可使用手机扫码签到：打开手机浏览器扫描签到台的二维码</div>
+</body>
+</html>

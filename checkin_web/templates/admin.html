@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课程签到管理系统</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --sidebar-w: 220px; --header-h: 56px; }
+        body { font-family: -apple-system,"Microsoft YaHei",sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; display: flex; }
+
+        /* 侧边栏 */
+        .sidebar {
+            width: var(--sidebar-w);
+            background: #1e293b;
+            color: #cbd5e1;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0; bottom: 0;
+            z-index: 100;
+        }
+        .sidebar-brand {
+            padding: 18px 20px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 0.95rem;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-item:hover { background: #334155; color: #fff; }
+        .sidebar-item.active {
+            background: #334155;
+            color: #fff;
+            border-left-color: #10b981;
+            font-weight: 600;
+        }
+        .sidebar-item .icon { font-size: 1.2rem; width: 24px; text-align: center; }
+        .sidebar-item .badge {
+            margin-left: auto;
+            background: #10b981;
+            color: #fff;
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+        .sidebar-footer {
+            padding: 12px 20px;
+            border-top: 1px solid #334155;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+        .sidebar-footer a { color: #94a3b8; text-decoration: none; }
+        .sidebar-footer a:hover { color: #fff; }
+
+        /* 主内容 */
+        .main-content {
+            margin-left: var(--sidebar-w);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .header {
+            height: var(--header-h);
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .header h1 { font-size: 1.2rem; font-weight: 600; }
+        .header-actions { display: flex; gap: 12px; align-items: center; }
+        .content {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        /* 内容卡片 */
+        .content-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .content-card .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .content-card .card-header h2 { font-size: 1.1rem; font-weight: 600; }
+
+        /* 页面切换 */
+        .page-section { display: none; }
+        .page-section.active { display: block; }
+
+        /* 表格列表 */
+        .table-wrap { overflow-x: auto; }
+        table.admin-table { width: 100%; border-collapse: collapse; }
+        table.admin-table th {
+            text-align: left; padding: 10px 14px;
+            font-size: 0.85rem; color: #64748b;
+            border-bottom: 2px solid #e2e8f0; font-weight: 600;
+        }
+        table.admin-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.9rem;
+        }
+        table.admin-table tr:hover td { background: #f8fafc; }
+        table.admin-table .actions { white-space: nowrap; }
+        .empty-row td { text-align: center; padding: 32px !important; color: #94a3b8; }
+
+        /* 进度条 */
+        .mini-bar { height: 4px; background: #e2e8f0; border-radius: 2px; overflow: hidden; width: 120px; }
+        .mini-bar .fill { height: 100%; background: #10b981; border-radius: 2px; }
+
+        /* 标签 */
+        .tag {
+            display: inline-block; padding: 2px 10px; border-radius: 12px;
+            font-size: 0.8rem; font-weight: 500;
+        }
+        .tag-green { background: #d1fae5; color: #065f46; }
+        .tag-blue { background: #dbeafe; color: #1e40af; }
+        .tag-yellow { background: #fef3c7; color: #92400e; }
+        .tag-gray { background: #f1f5f9; color: #475569; }
+
+        /* 班级筛选胶囊 */
+        .capsule-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+        .capsule {
+            padding: 6px 16px; border-radius: 20px;
+            border: 1px solid #e2e8f0; cursor: pointer;
+            font-size: 0.85rem; transition: all 0.15s;
+            background: #fff;
+        }
+        .capsule:hover { border-color: #2563eb; color: #2563eb; }
+        .capsule.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+        .capsule .count { font-size: 0.75rem; opacity: 0.7; }
+
+        /* 表单行 */
+        .form-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; align-items: flex-end; }
+        .form-row .form-group { margin-bottom: 0; }
+        .form-row .form-input { font-size: 0.9rem; }
+
+        /* 空状态 */
+        .empty-state { text-align: center; padding: 40px; color: #94a3b8; }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+        /* 弹窗 */
+        .modal { max-width: 500px; }
+
+        /* 响应式 - 手机：底部导航栏 */
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; height: 60px; top: auto; bottom: 0; flex-direction: row; z-index: 1000; border-top: 1px solid #334155; }
+            .sidebar-brand { display: none; }
+            .sidebar-nav { display: flex; flex-direction: row; padding: 0; width: 100%; justify-content: space-around; }
+            .sidebar-item { flex-direction: column; padding: 4px 4px; font-size: 0.6rem; gap: 1px; border-left: none; border-top: 2px solid transparent; min-width: 0; flex: 1; justify-content: center; align-items: center; }
+            .sidebar-item.active { border-top-color: #10b981; border-left-color: transparent; }
+            .sidebar-item .icon { font-size: 1.2rem; width: auto; }
+            .sidebar-item .badge { display: none; }
+            .sidebar-footer { display: none; }
+            .main-content { margin-left: 0; margin-bottom: 60px; }
+            .header { padding: 0 12px; height: 48px; }
+            .header h1 { font-size: 1rem; }
+            .content { padding: 12px; }
+            .content-card { padding: 14px; border-radius: 10px; }
+            .content-card .card-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+            .form-row { flex-direction: column; }
+            .form-input, .form-row .form-input { width: 100%; max-width: 100% !important; font-size: 16px; }
+            table.admin-table { font-size: 0.75rem; }
+            table.admin-table th, table.admin-table td { padding: 6px 8px; }
+            .modal { width: 95%; max-width: none; margin: 10px auto; }
+            .header-actions { flex-wrap: wrap; gap: 6px; }
+            .header-actions .btn { font-size: 0.8rem; padding: 6px 12px; }
+            .toast { width: 90%; left: 5%; right: 5%; }
+        }
+        @media (max-width: 480px) {
+            .sidebar-item { font-size: 0.55rem; padding: 3px 2px; }
+            .sidebar-item .icon { font-size: 1rem; }
+            table.admin-table th, table.admin-table td { padding: 4px 4px; font-size: 0.7rem; }
+            .content { padding: 6px; }
+            .content-card { padding: 10px; }
+            .btn { font-size: 0.75rem; padding: 6px 10px; }
+            .btn-sm { font-size: 0.65rem; padding: 4px 8px; }
+        }
+    </style>
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+        <div class="sidebar-brand">📋 <span>签到系统</span></div>
+        <nav class="sidebar-nav">
+            <div class="sidebar-item active" onclick="switchTab('meetings')" id="nav-meetings">
+                <span class="icon">📊</span><span>课程管理</span>
+            </div>
+            <div class="sidebar-item" onclick="switchTab('departments')" id="nav-departments">
+                <span class="icon">🏢</span><span>班级管理</span>
+            </div>
+            <div class="sidebar-item" onclick="switchTab('personnel')" id="nav-personnel">
+                <span class="icon">👤</span><span>学生管理</span>
+            </div>
+            <div class="sidebar-item" onclick="switchTab('checkin')" id="nav-checkin">
+                <span class="icon">✅</span><span>签到管理</span>
+            </div>
+            <div class="sidebar-item" onclick="switchTab('registration')" id="nav-registration">
+                <span class="icon">📱</span><span>自助注册</span>
+            </div>
+        </nav>
+        <div class="sidebar-footer" style="font-size:0.75rem;">
+            <div style="margin-bottom:6px;">📸 签到台</div>
+            <div><a href="http://localhost:5001" target="_blank">默认 (5001)</a></div>
+            <div style="margin-top:4px;color:#64748b;">
+                启动多签到台:<br>
+                <code style="font-size:0.7rem;word-break:break-all;">python checkin_web\kiosk.py --port 5002 --meeting "会议名"</code>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 主内容 -->
+    <div class="main-content">
+        <header class="header">
+            <h1 id="page-title">课程管理</h1>
+            <div class="header-actions">
+                <span style="font-size:0.85rem;color:#94a3b8;" id="header-time"></span>
+            </div>
+        </header>
+        <div class="content" id="main-content">
+            <!-- 各页面由 JS 动态加载 -->
+        </div>
+
+    </div>
+
+    <!-- 通用弹窗 -->
+    <div id="modal-overlay" class="modal-overlay" style="display:none;">
+        <div class="modal" id="modal-content"></div>
+    </div>
+
+    <script>
+        const MEETING_NAME = '';  // 全局占位
+        let currentTab = 'meetings';
+
+        // ===== 初始化 =====
+        document.addEventListener('DOMContentLoaded', function() {
+            updateTime();
+            setInterval(updateTime, 1000);
+            switchTab('meetings');
+        });
+        function updateTime() {
+            var el = document.getElementById('header-time');
+            if (el) el.textContent = new Date().toLocaleString('zh-CN');
+        }
+
+        function showToast(msg, type) {
+            var t = document.createElement('div');
+            t.className = 'toast ' + (type || '');
+            t.textContent = msg;
+            t.style.display = 'block';
+            document.body.appendChild(t);
+            setTimeout(function() { t.style.display = 'none'; document.body.removeChild(t); }, 3000);
+        }
+
+        function escHtml(s) {
+            var d = document.createElement('div');
+            d.textContent = s; return d.innerHTML;
+        }
+
+        function api(url, opts) {
+            var defaults = { headers: {} };
+            if (opts && opts.body && !(opts.body instanceof FormData)) {
+                defaults.headers['Content-Type'] = 'application/json';
+            }
+            return fetch(url, Object.assign(defaults, opts)).then(function(r) {
+                return r.json().then(function(d) { return { ok: r.ok, data: d }; }).catch(function() { return { ok: r.ok, data: null }; });
+            });
+        }
+
+        // ===== 页面导航 =====
+        function openPageView(url, title) {
+            // 直接跳转，下一页有返回按钮可以回到管理后台
+            window.location.href = url;
+        }
+
+        function showModal(html) {
+            document.getElementById('modal-content').innerHTML = html;
+            document.getElementById('modal-overlay').style.display = 'flex';
+        }
+        function hideModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+        // ===== 标签切换 =====
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.sidebar-item').forEach(function(el) { el.classList.remove('active'); });
+            var navEl = document.getElementById('nav-' + tab);
+            if (navEl) navEl.classList.add('active');
+            var titles = { meetings: '课程管理', departments: '班级管理', personnel: '学生管理', checkin: '签到管理', registration: '自助注册' };
+            document.getElementById('page-title').textContent = titles[tab] || '管理';
+            if (tab === 'meetings') loadMeetingsPage();
+            else if (tab === 'departments') loadDepartmentsPage();
+            else if (tab === 'personnel') loadPersonnelPage();
+            else if (tab === 'checkin') loadCheckinPage();
+            else if (tab === 'registration') loadRegistrationPage();
+        }
+
+        // ===== 1. 课程管理 =====
+        function loadMeetingsPage() {
+            var c = document.getElementById('main-content');
+            c.innerHTML = '<div class="loading">加载中...</div>';
+            api('/api/meetings').then(function(r) {
+                var meetings = r.data || [];
+                var html = '<div class="content-card">'
+                    + '<div class="card-header"><h2>📊 所有课程</h2>'
+                    + '<button class="btn btn-primary btn-sm" onclick="showCreateMeeting()">＋ 创建课程</button></div>';
+                if (!meetings.length) {
+                    html += '<div class="empty-state"><div class="icon">📋</div><p>暂无课程</p></div>';
+                } else {
+                    html += '<div class="table-wrap"><table class="admin-table"><thead><tr>'
+                        + '<th>课程名称</th><th>描述</th><th>参与者</th><th>签到</th><th>签到率</th><th>操作</th>'
+                        + '</tr></thead><tbody>';
+                    meetings.forEach(function(m) {
+                        var total = m.participant_count || 0;
+                        var checked = m.checked_in || 0;
+                        var rate = total > 0 ? Math.round(checked/total*100) : 0;
+                        var desc = m.description || '-';
+                        html += '<tr><td><strong>' + escHtml(m.name) + '</strong></td>'
+                            + '<td style="color:#64748b;font-size:0.85rem;">' + escHtml(desc) + '</td>'
+                            + '<td>' + total + ' 人</td>'
+                            + '<td>' + checked + '/' + total + '<div class="mini-bar"><div class="fill" style="width:' + rate + '%"></div></div></td>'
+                            + '<td><span class="tag ' + (rate >= 80 ? 'tag-green' : rate > 0 ? 'tag-yellow' : 'tag-gray') + '">' + rate + '%</span></td>'
+                            + '<td class="actions">'
+                            + '<button class="btn btn-outline btn-sm" onclick="showEditMeeting(\'' + escHtml(m.name) + '\',\'' + escHtml(desc) + '\')">✏️</button> '
+                            + '<button class="btn btn-outline btn-sm" onclick="openPageView(\'/meeting/' + encodeURIComponent(m.name) + '\',\'' + escHtml(m.name) + ' - 详情\')">详情</button> '
+                            + '<button class="btn btn-outline btn-sm" onclick="openPageView(\'/report/' + encodeURIComponent(m.name) + '\',\'' + escHtml(m.name) + ' - 报告\')">报告</button> '
+                            + '<button class="btn btn-danger btn-sm" onclick="deleteMeeting(\'' + escHtml(m.name) + '\')">🗑</button>'
+                            + '</td></tr>';
+                    });
+                    html += '</tbody></table></div>';
+                }
+                html += '</div>';
+                c.innerHTML = html;
+            });
+        }
+
+        function showCreateMeeting() {
+            showModal('<h2>创建新课程</h2>'
+                + '<div class="form-group"><label>课程名称 *</label><input id="modal-meeting-name" type="text" class="form-input" placeholder="例如：项目评审会"></div>'
+                + '<div class="form-group"><label>描述</label><input id="modal-meeting-desc" type="text" class="form-input" placeholder="可选"></div>'
+                + '<div class="modal-actions">'
+                + '<button class="btn btn-secondary" onclick="hideModal()">取消</button>'
+                + '<button class="btn btn-primary" onclick="confirmCreateMeeting()">创建</button></div>');
+            setTimeout(function() { var el = document.getElementById('modal-meeting-name'); if (el) el.focus(); }, 100);
+        }
+
+        function confirmCreateMeeting() {
+            var name = document.getElementById('modal-meeting-name').value.trim();
+            var desc = document.getElementById('modal-meeting-desc').value.trim();
+            if (!name) { showToast('请输入课程名称','error'); return; }
+            api('/api/meetings', { method: 'POST', body: JSON.stringify({name: name, description: desc}) })
+            .then(function(r) {
+                if (!r.ok) { showToast(r.data && r.data.error || '创建失败','error'); return; }
+                hideModal();
+                showToast('会议创建成功','success');
+                loadMeetingsPage();
+            });
+        }
+
+        // ─── 会议编辑/删除 ────────────────────────
+
+        var editingMeeting = '';
+
+        function showEditMeeting(name, desc) {
+            editingMeeting = name;
+            showModal('<h2>编辑会议</h2>'
+                + '<div class="form-group"><label>课程名称</label><input id="edit-meeting-name" type="text" class="form-input" value="' + escHtml(name) + '"></div>'
+                + '<div class="form-group"><label>描述</label><input id="edit-meeting-desc" type="text" class="form-input" value="' + escHtml(desc) + '"></div>'
+                + '<div class="form-group"><label>会议日期</label><input id="edit-meeting-date" type="date" class="form-input"></div>'
+                + '<div class="form-group"><label>签到截止时间</label><input id="edit-meeting-deadline" type="time" class="form-input"></div>'
+                + '<div class="modal-actions">'
+                + '<button class="btn btn-secondary" onclick="hideModal()">取消</button>'
+                + '<button class="btn btn-primary" onclick="confirmEditMeeting()">保存</button></div>');
+            // 加载当前值
+            api('/api/meeting/' + encodeURIComponent(name)).then(function(r) {
+                if (!r.ok || !r.data) return;
+                var di = document.getElementById('edit-meeting-date');
+                var dl = document.getElementById('edit-meeting-deadline');
+                if (di && r.data.meeting_date) di.value = r.data.meeting_date;
+                if (dl && r.data.checkin_deadline) dl.value = r.data.checkin_deadline;
+            });
+        }
+
+        function confirmEditMeeting() {
+            var newName = document.getElementById('edit-meeting-name').value.trim();
+            var desc = document.getElementById('edit-meeting-desc').value.trim();
+            var date = document.getElementById('edit-meeting-date').value;
+            var deadline = document.getElementById('edit-meeting-deadline').value;
+            if (!newName) { showToast('课程名称不能为空','error'); return; }
+            // 如果有重命名，先调用 rename
+            var chain = Promise.resolve();
+            if (newName !== editingMeeting) {
+                chain = api('/api/meeting/' + encodeURIComponent(editingMeeting) + '/rename', {
+                    method: 'POST', body: JSON.stringify({new_name: newName})
+                }).then(function(r) {
+                    if (!r.ok) { showToast(r.data && r.data.error || '重命名失败','error'); return null; }
+                    return newName;
+                });
+            } else {
+                chain = Promise.resolve(editingMeeting);
+            }
+            chain.then(function(resultName) {
+                if (!resultName) return;
+                // 更新描述/日期/截止时间
+                var updateData = {description: desc};
+                if (date) updateData.meeting_date = date;
+                if (deadline) updateData.checkin_deadline = deadline;
+                api('/api/meeting/' + encodeURIComponent(resultName), {
+                    method: 'PUT', body: JSON.stringify(updateData)
+                }).then(function(r) {
+                    if (!r.ok) { showToast('保存失败','error'); return; }
+                    hideModal(); showToast('会议已更新','success'); loadMeetingsPage();
+                });
+            });
+        }
+
+        function deleteMeeting(name) {
+            if (!confirm('确定删除会议 "' + name + '" 吗？所有参与者数据和签到记录都将被删除！')) return;
+            api('/api/meeting/' + encodeURIComponent(name), { method: 'DELETE' })
+            .then(function(r) {
+                if (!r.ok) { showToast('删除失败','error'); return; }
+                showToast('会议已删除','success');
+                loadMeetingsPage();
+            });
+        }
+
+        // ===== 2. 班级管理（全局，独立于课程） =====
+        function loadDepartmentsPage() {
+            var c = document.getElementById('main-content');
+            c.innerHTML = '<div class="loading">加载中...</div>';
+            fetch('/api/global-classes').then(function(r) { return r.json(); }).then(function(data) {
+                var classes = data.classes || [];
+                var html = '<div class="content-card">'
+                    + '<div class="card-header"><h2>🏢 班级管理</h2></div>'
+                    + '<div class="form-row" style="gap:8px;padding:0 20px 16px;">'
+                    + '<input id="new-class-input" type="text" class="form-input" placeholder="新班级名称" style="max-width:200px;">'
+                    + '<button class="btn btn-primary btn-sm" onclick="addGlobalClass()">＋ 添加班级</button>'
+                    + '</div>';
+                if (!classes.length) {
+                    html += '<div class="empty-state"><div class="icon">🏢</div><p>暂无班级</p>'
+                        + '<p style="font-size:0.85rem;color:#64748b;">创建班级后，可在课程详情中关联班级</p></div>';
+                } else {
+                    html += '<div class="table-wrap"><table class="admin-table"><thead><tr>'
+                        + '<th>班级名称</th><th>学生数</th><th>关联课程</th><th>操作</th>'
+                        + '</tr></thead><tbody>';
+                    classes.forEach(function(c) {
+                        html += '<tr><td><strong>' + escHtml(c) + '</strong></td>'
+                            + '<td id="cls-stu-' + escHtml(c).replace(/\s/g,'_') + '"><span class="loading" style="padding:0;font-size:0.8rem;">...</span></td>'
+                            + '<td id="cls-crs-' + escHtml(c).replace(/\s/g,'_') + '"><span class="loading" style="padding:0;font-size:0.8rem;">...</span></td>'
+                            + '<td><button class="btn btn-danger btn-sm" onclick="deleteGlobalClass(\'' + escHtml(c) + '\')">删除</button></td>'
+                            + '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                }
+                html += '</div>';
+                c.innerHTML = html;
+
+                // 逐个加载班级详情
+                classes.forEach(function(c) {
+                    fetch('/api/class/' + encodeURIComponent(c) + '/students')
+                    .then(function(r) { return r.json(); }).then(function(d) {
+                        var el = document.getElementById('cls-stu-' + escHtml(c).replace(/\s/g,'_'));
+                        if (el) el.textContent = (d.students || []).length + ' 人';
+                    });
+                    // 统计该班级关联的课程数
+                    fetch('/api/meetings').then(function(r) { return r.json(); }).then(function(meetings) {
+                        var count = 0;
+                        var checks = meetings.map(function(m) {
+                            return fetch('/api/course/' + encodeURIComponent(m.name) + '/classes')
+                                .then(function(r) { return r.json(); }).then(function(d) {
+                                    if (d.classes && d.classes.includes(c)) count++;
+                                });
+                        });
+                        Promise.all(checks).then(function() {
+                            var el = document.getElementById('cls-crs-' + escHtml(c).replace(/\s/g,'_'));
+                            if (el) el.textContent = count + ' 个';
+                        });
+                    });
+                });
+            });
+        }
+
+        function addGlobalClass() {
+            var input = document.getElementById('new-class-input');
+            var name = input.value.trim();
+            if (!name) { showToast('请输入班级名称','error'); return; }
+            fetch('/api/global-classes', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({name: name})
+            }).then(function(r) { return r.json(); }).then(function(d) {
+                if (d.success) { input.value = ''; showToast('班级已创建','success'); loadDepartmentsPage(); }
+                else { showToast(d.error || '创建失败','error'); }
+            });
+        }
+
+        function deleteGlobalClass(name) {
+            if (!confirm('确定删除班级 "' + name + '" 吗？\n该班级的所有学生将从所有课程中移除。')) return;
+            fetch('/api/global-classes/' + encodeURIComponent(name), { method: 'DELETE' })
+            .then(function(r) { return r.json(); }).then(function(d) {
+                if (d.success) { showToast('班级已删除','success'); loadDepartmentsPage(); }
+                else { showToast(d.error || '删除失败','error'); }
+            });
+        }
+
+        // ===== 3. 学生管理 =====
+        function loadPersonnelPage() {
+            var c = document.getElementById('main-content');
+            c.innerHTML = '<div class="loading">加载中...</div>';
+            api('/api/meetings').then(function(r) {
+                var meetings = r.data || [];
+                if (!meetings.length) {
+                    c.innerHTML = '<div class="content-card"><div class="empty-state"><div class="icon">👤</div><p>请先创建课程</p></div></div>';
+                    return;
+                }
+                var html = '<div class="content-card">'
+                    + '<div class="card-header"><h2>👤 学生管理</h2></div>';
+                html += '<div class="form-row">'
+                    + '<div class="form-group"><label>选择课程</label>'
+                    + '<select id="personnel-meeting-select" class="form-input" onchange="loadPersonnelForMeeting()">';
+                meetings.forEach(function(m) {
+                    html += '<option value="' + escHtml(m.name) + '">' + escHtml(m.name) + '</option>';
+                });
+                html += '</select></div>'
+                    + '<div class="form-group"><label>搜索</label>'
+                    + '<input type="text" id="personnel-search" class="form-input" placeholder="姓名" style="max-width:150px;" oninput="loadPersonnelForMeeting()">'
+                    + '</div>'
+                    + '<div class="form-group"><label>&nbsp;</label>'
+                    + '<button class="btn btn-outline btn-sm" onclick="showAddPersonnel()">＋ 添加</button>'
+                    + '<button class="btn btn-outline btn-sm" onclick="showBatchUploadPersonnel()">📁 批量照片</button>'
+                    + '<button class="btn btn-outline btn-sm" onclick="showPhoneUploadPersonnel()">📞 批量电话</button>'
+                    + '</div>'
+                    + '</div>';
+                html += '<div id="personnel-dept-filter" class="capsule-row"></div>';
+                html += '<div id="personnel-table-wrap">选择课程后加载...</div></div>';
+                c.innerHTML = html;
+                loadPersonnelForMeeting();
+            });
+        }
+
+        let personnelData = [];
+
+        function loadPersonnelForMeeting() {
+            var sel = document.getElementById('personnel-meeting-select');
+            if (!sel) return;
+            var meetingName = sel.value;
+            var query = (document.getElementById('personnel-search') || {}).value || '';
+            var wrap = document.getElementById('personnel-table-wrap');
+            wrap.innerHTML = '<div class="loading">加载中...</div>';
+            // 同时加载班级和学生数据
+            Promise.all([
+                fetch('/api/global-classes').then(function(r) { return r.json(); }),
+                api('/api/meeting/' + encodeURIComponent(meetingName) + '/participants/search?q=' + encodeURIComponent(query))
+            ]).then(function(results) {
+                var depts = results[0].classes || [];
+                var participants = results[1].data || [];
+                personnelData = participants;
+                // 班级筛选胶囊
+                var filterDiv = document.getElementById('personnel-dept-filter');
+                filterDiv.innerHTML = '<span class="capsule active" onclick="filterPersonnel(this,\'\')" data-filter="">全部 <span class="count">' + participants.length + '</span></span>';
+                depts.forEach(function(d) {
+                    var count = participants.filter(function(p) { return p.department === d; }).length;
+                    filterDiv.innerHTML += '<span class="capsule" onclick="filterPersonnel(this,\'' + escHtml(d) + '\')" data-filter="' + escHtml(d) + '">' + escHtml(d) + ' <span class="count">' + count + '</span></span>';
+                });
+                renderPersonnelTable(participants, wrap, meetingName);
+            });
+        }
+
+        function filterPersonnel(el, dept) {
+            document.querySelectorAll('#personnel-dept-filter .capsule').forEach(function(c) { c.classList.remove('active'); });
+            el.classList.add('active');
+            var filtered = dept ? personnelData.filter(function(p) { return p.department === dept; }) : personnelData;
+            var sel = document.getElementById('personnel-meeting-select');
+            var meetingName = sel ? sel.value : '';
+            renderPersonnelTable(filtered, document.getElementById('personnel-table-wrap'), meetingName);
+        }
+
+        function renderPersonnelTable(data, wrap, meetingName) {
+            if (!data.length) {
+                wrap.innerHTML = '<div class="empty-state"><p>暂无人员</p></div>';
+                return;
+            }
+            var html = '<div class="table-wrap"><table class="admin-table"><thead><tr>'
+                + '<th style="width:30px;"><input type="checkbox" onchange="toggleAllPersonnel(this)"></th>'
+                + '<th>姓名</th><th>班级</th><th>电话</th><th>照片</th><th>操作</th>'
+                + '</tr></thead><tbody>';
+            data.forEach(function(p) {
+                var deptTag = p.department ? '<span class="tag tag-blue">' + escHtml(p.department) + '</span>' : '<span class="tag tag-gray">-</span>';
+                var phoneText = p.phone || '-';
+                html += '<tr data-name="' + escHtml(p.name) + '">'
+                    + '<td><input type="checkbox" class="personnel-cb" data-name="' + escHtml(p.name) + '"></td>'
+                    + '<td><strong>' + escHtml(p.name) + '</strong></td>'
+                    + '<td>' + deptTag + '</td>'
+                    + '<td style="color:#64748b;font-size:0.85rem;">' + escHtml(phoneText) + '</td>'
+                    + '<td>' + (p.photo_count || 0) + ' 张</td>'
+                    + '<td class="actions">'
+                    + '<button class="btn btn-outline btn-sm" onclick="editPersonnelMeta(\'' + escHtml(meetingName) + '\',\'' + escHtml(p.name) + '\',\'' + escHtml(p.department||'') + '\',\'' + escHtml(p.phone||'') + '\')">✏️ 编辑</button> '
+                    + '<button class="btn btn-danger btn-sm" onclick="deletePersonnel(\'' + escHtml(meetingName) + '\',\'' + escHtml(p.name) + '\')">删除</button>'
+                    + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+            html += '<div style="margin-top:8px;font-size:0.85rem;color:#94a3b8;">共 ' + data.length + ' 人'
+                + ' <span style="cursor:pointer;color:var(--primary);margin-left:12px;" onclick="batchDeletePersonnel(\'' + escHtml(meetingName) + '\')">🗑 删除选中</span></div>';
+            wrap.innerHTML = html;
+        }
+
+        function toggleAllPersonnel(cb) {
+            document.querySelectorAll('.personnel-cb').forEach(function(c) { c.checked = cb.checked; });
+        }
+
+        function batchDeletePersonnel(meetingName) {
+            var cbs = document.querySelectorAll('.personnel-cb:checked');
+            var names = [];
+            cbs.forEach(function(cb) { names.push(cb.getAttribute('data-name')); });
+            if (!names.length) { showToast('请选择要删除的人员','error'); return; }
+            if (!confirm('确定删除选中的 ' + names.length + ' 人吗？')) return;
+            api('/api/meeting/' + encodeURIComponent(meetingName) + '/participants/batch-delete', { method: 'POST', body: JSON.stringify({names: names}) })
+            .then(function(r) {
+                if (!r.ok) { showToast('删除失败','error'); return; }
+                showToast('已删除 ' + names.length + ' 人','success');
+                loadPersonnelForMeeting();
+            });
+        }
+
+        function deletePersonnel(meetingName, name) {
+            if (!confirm('确定删除 "' + name + '" 吗？')) return;
+            fetch('/api/meeting/' + encodeURIComponent(meetingName) + '/participants/' + encodeURIComponent(name), { method: 'DELETE' })
+            .then(function(r) { return r.json(); }).then(function(d) {
+                if (d.error) { showToast(d.error,'error'); return; }
+                showToast('已删除','success'); loadPersonnelForMeeting();
+            });
+        }
+
+        // ─── 班级下拉框辅助函数 ──────────────────────
+
+        function loadDeptSelect(selectId, meetingName, selectedDept) {
+            var sel = document.getElementById(selectId);
+            if (!sel) return;
+            sel.innerHTML = '<option value="">— 无 —</option>';
+            // 从全局班级加载
+            fetch('/api/global-classes').then(function(r) { return r.json(); }).then(function(data) {
+                (data.classes || []).forEach(function(d) {
+                    var opt = document.createElement('option');
+                    opt.value = d;
+                    opt.textContent = d;
+                    if (d === selectedDept) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            });
+        }
+
+        function editPersonnelMeta(meetingName, name, dept, phone) {
+            showModal('<h2>编辑学生信息</h2>'
+                + '<div class="form-group"><label>姓名</label><input id="edit-name" type="text" class="form-input" value="' + escHtml(name) + '"></div>'
+                + '<div class="form-group"><label>班级</label><select id="edit-dept" class="form-input"><option value="">— 无 —</option></select></div>'
+                + '<div class="form-group"><label>电话</label><input id="edit-phone" type="text" class="form-input" value="' + escHtml(phone) + '"></div>'
+                + '<div class="modal-actions">'
+                + '<button class="btn btn-secondary" onclick="hideModal()">取消</button>'
+                + '<button class="btn btn-primary" onclick="confirmEditPersonnel(\'' + escHtml(meetingName) + '\',\'' + escHtml(name) + '\')">保存</button></div>');
+            loadDeptSelect('edit-dept', meetingName, dept);
+        }
+
+        function confirmEditPersonnel(meetingName, oldName) {
+            var newName = document.getElementById('edit-name').value.trim();
+            var dept = document.getElementById('edit-dept').value;
+            var phone = document.getElementById('edit-phone').value.trim();
+            if (!newName) { showToast('姓名不能为空','error'); return; }
+
+            var renamePromise = Promise.resolve();
+            if (newName !== oldName) {
+                renamePromise = fetch('/api/meeting/' + encodeURIComponent(meetingName) + '/participants/' + encodeURIComponent(oldName) + '/rename', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({new_name: newName})
+                }).then(function(r) { return r.json(); }).then(function(d) {
+                    if (d.error) { throw new Error(d.error); }
+                    return d;
+                });
+            }
+
+            renamePromise.then(function() {
+                return fetch('/api/meeting/' + encodeURIComponent(meetingName) + '/participants/meta', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({name: newName, department: dept, phone: phone})
+                }).then(function(r) { return r.json(); });
+            }).then(function(d) {
+                if (d.error) { showToast(d.error,'error'); return; }
+                // 同步到全局索引
+                fetch('/api/meeting/' + encodeURIComponent(meetingName) + '/participants/phones', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({items: [{name: newName, department: dept, phone: phone}]})
+                });
+                hideModal(); showToast('已保存','success'); loadPersonnelForMeeting();
+            }).catch(function(e) {
+                showToast(e.message || '保存失败','error');
+            });
+        }
+
+        function showAddPersonnel() {
+            var sel = document.getElementById('personnel-meeting-select');
+            var meetingName = sel ? sel.value : '';
+            showModal('<h2>添加学生</h2>'
+                + '<div class="form-group"><label>姓名 *</label><input id="add-p-name" type="text" class="form-input"></div>'
+                + '<div class="form-group"><label>班级</label><select id="add-p-dept" class="form-input"><option value="">— 无 —</option></select></div>'
+                + '<div class="form-group"><label>电话</label><input id="add-p-phone" type="text" class="form-input" placeholder="可选"></div>'
+                + '<div class="form-group"><label>照片</label><input id="add-p-photo" type="file" class="form-input" accept="image/*"></div>'
+                + '<div class="modal-actions">'
+                + '<button class="btn btn-secondary" onclick="hideModal()">取消</button>'
+                + '<button class="btn btn-primary" onclick="confirmAddPersonnel(\'' + escHtml(meetingName) + '\')">添加</button></div>');
+            loadDeptSelect('add-p-dept', meetingName, '');
+        }
+
+        function confirmAddPersonnel(meetingName) {
+            var name = document.getElementById('add-p-name').value.trim();
+            var dept = document.getElementById('add-p-dept').value;
+            var phone = document.getElementById('add-p-phone').value.trim();
+            var fileInput = document.getElementById('add-p-photo');
+            if (!name) { showToast('请输入姓名','error'); return; }
+            if (!fileInput || !fileInput.files.length) { showToast('请选择照片','error'); return; }
+            var formData = new FormData();
+            formData.append('name', name);
+            formData.append('photo', fileInput.files[0]);
+            api('/api/meeting/' + encodeURIComponent(meetingName) + '/participants', { method: 'POST', body: formData })
+            .then(function(r) {
+                if (!r.ok) { showToast(r.data && r.data.error || '添加失败','error'); return; }
+                if (dept || phone) {
+                    return fetch('/api/meeting/' + encodeURIComponent(meetingName) + '/participants/meta', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({name: name, department: dept, phone: phone})
+                    }).then(function() { return r; });
+                }
+                return r;
+            }).then(function() {
+                // 同步到全局索引
+                fetch('/api/meeting/' + encodeURIComponent(meetingName) + '/participants/phones', {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({items: [{name: name, department: dept, phone: phone}]})
+                });
+                hideModal(); showToast('添加成功','success'); loadPersonnelForMeeting();
+            });
+        }
+
+        function showBatchUploadPersonnel() {
+            var sel = document.getElementById('personnel-meeting-select');
+            var meetingName = sel ? sel.value : '';
+            showModal('<h2>📁 批量上传照片</h2>'
+                + '<p style="font-size:0.85rem;color:#64748b;margin-bottom:12px;">选择多张照片，文件名作为姓名。可选指定班级。</p>'
+                + '<div class="form-group"><label>班级（可选）</label><select id="batch-dept-input" class="form-input"><option value="">— 全部归入此部门 —</option></select></div>'
+                + '<div class="form-group"><label>照片</label><input id="batch-photos-input" type="file" class="form-input" accept="image/*" multiple></div>'
+                + '<div id="batch-preview-area"></div>'
+                + '<div class="modal-actions">'
+                + '<button class="btn btn-secondary" onclick="hideModal()">取消</button>'
+                + '<button class="btn btn-primary" onclick="confirmBatchUploadPersonnel(\'' + escHtml(meetingName) + '\')">上传</button></div>');
+            loadDeptSelect('batch-dept-input', meetingName, '');
+            document.getElementById('batch-photos-input').addEventListener('change', function(e) {
+                var names = [];
+                for (var f of e.target.files) names.push(f.name.replace(/\.[^.]+$/, ''));
+                document.getElementById('batch-preview-area').innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;">'
+                    + names.map(function(n) { return '<span style="padding:2px 10px;background:#f1f5f9;border-radius:12px;font-size:0.85rem;">' + escHtml(n) + '</span>'; }).join('') + '</div>';
+            });
+        }
+
+        function confirmBatchUploadPersonnel(meetingName) {
+            var fileInput = document.getElementById('batch-photos-input');
+            if (!fileInput || !fileInput.files.length) { showToast('请选择照片','error'); return; }
+            var dept = document.getElementById('batch-dept-input').value;
+            var formData = new FormData();
+            for (var f of fileInput.files) formData.append('photos', f);
+            fetch('/api/meeting/' + encodeURIComponent(meetingName) + '/participants/batch', { method: 'POST', body: formData })
+            .then(function(r) { return r.json(); }).then(function(d) {
+                if (d.error) { showToast(d.error,'error'); return; }
+                if (dept && d.added && d.added.length) {
+                    return fetch('/api/meeting/' + encodeURIComponent(meetingName) + '/participants/phones', {
+                        method: 'POST', headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({items: d.added.map(function(n) { return {name: n, department: dept, phone: ''}; })})
+                    }).then(function() { return d; });
+                }
+                return d;
+            }).then(function(d) {
+                hideModal(); showToast('成功添加 ' + (d.count||0) + ' 人','success'); loadPersonnelForMeeting();
+            });
+        }
+
+        function showPhoneUploadPersonnel() {
+            var sel = document.getElementById('personnel-meeting-select');
+            var meetingName = sel ? sel.value : '';
+            showModal('<h2>📞 批量上传联系方式</h2>'
+                + '<p style="font-size:0.85rem;color:#64748b;margin-bottom:12px;">每行一个：姓名,电话,班级</p>'
+                + '<div class="form-group"><label>数据（CSV）</label>'
+                + '<textarea id="phone-textarea" class="form-input" rows="6" placeholder="张三,13800138000,技术部&#10;李四,13900139000,市场部">'
+                + '</textarea></div>'
+                + '<div class="modal-actions">'
+                + '<button class="btn btn-secondary" onclick="hideModal()">取消</button>'
+                + '<button class="btn btn-primary" onclick="confirmPhoneUpload(\'' + escHtml(meetingName) + '\')">上传</button></div>');
+        }
+
+        function confirmPhoneUpload(meetingName) {
+            var text = document.getElementById('phone-textarea').value.trim();
+            if (!text) { showToast('请输入数据','error'); return; }
+            var items = text.split('\n').filter(function(l) { return l.trim(); }).map(function(line) {
+                var parts = line.split(',').map(function(s) { return s.trim(); });
+                return {name: parts[0]||'', phone: parts[1]||'', department: parts[2]||''};
+            }).filter(function(item) { return item.name; });
+            if (!items.length) { showToast('没有有效数据','error'); return; }
+            fetch('/api/meeting/' + encodeURIComponent(meetingName) + '/participants/phones', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({items: items})
+            }).then(function(r) { return r.json(); }).then(function(d) {
+                if (d.error) { showToast(d.error,'error'); return; }
+                hideModal(); showToast('成功上传 ' + d.count + ' 人信息','success'); loadPersonnelForMeeting();
+            });
+        }
+
+        // ===== 4. 签到管理 =====
+        function loadCheckinPage() {
+            var c = document.getElementById('main-content');
+            c.innerHTML = '<div class="loading">加载中...</div>';
+            api('/api/meetings').then(function(r) {
+                var meetings = r.data || [];
+                if (!meetings.length) {
+                    c.innerHTML = '<div class="content-card"><div class="empty-state"><div class="icon">✅</div><p>请先创建课程</p></div></div>';
+                    return;
+                }
+                var html = '<div class="content-card">'
+                    + '<div class="card-header"><h2>✅ 签到管理</h2></div>';
+                html += '<div class="form-row"><div class="form-group"><label>选择课程</label>'
+                    + '<select id="checkin-meeting-select" class="form-input" onchange="loadCheckinReport()">';
+                meetings.forEach(function(m) {
+                    html += '<option value="' + escHtml(m.name) + '">' + escHtml(m.name) + '</option>';
+                });
+                html += '</select></div></div>';
+                html += '<div id="checkin-report-content">选择课程后加载...</div></div>';
+                c.innerHTML = html;
+                loadCheckinReport();
+            });
+        }
+
+        function loadCheckinReport() {
+            var sel = document.getElementById('checkin-meeting-select');
+            if (!sel) return;
+            var meetingName = sel.value;
+            var div = document.getElementById('checkin-report-content');
+            div.innerHTML = '<div class="loading">加载中...</div>';
+            api('/api/meeting/' + encodeURIComponent(meetingName) + '/report').then(function(r) {
+                if (!r.ok) { div.innerHTML = '<div class="empty-state"><p>无法加载报告</p></div>'; return; }
+                var d = r.data;
+                var total = d.total_participants || 0;
+                var checked = d.checked_in || 0;
+                var late = d.late_count || 0;
+                var rate = d.checkin_rate || '0%';
+                var deadline = d.checkin_deadline || '未设置';
+                var expected = d.expected_count || total;
+
+                // 设置签到截止时间
+                var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;">'
+                    + '<div style="text-align:center;padding:16px;background:#f8fafc;border-radius:8px;"><div style="font-size:2rem;font-weight:800;">' + total + '</div><div style="font-size:0.85rem;color:#64748b;">已注册</div></div>'
+                    + '<div style="text-align:center;padding:16px;background:#f8fafc;border-radius:8px;"><div style="font-size:2rem;font-weight:800;color:#10b981;">' + checked + '</div><div style="font-size:0.85rem;color:#64748b;">已签到</div></div>'
+                    + '<div style="text-align:center;padding:16px;background:#f8fafc;border-radius:8px;"><div style="font-size:2rem;font-weight:800;color:#f59e0b;">' + late + '</div><div style="font-size:0.85rem;color:#64748b;">迟到</div></div>'
+                    + '<div style="text-align:center;padding:16px;background:#f8fafc;border-radius:8px;"><div style="font-size:2rem;font-weight:800;color:#2563eb;">' + rate + '</div><div style="font-size:0.85rem;color:#64748b;">签到率</div></div>'
+                    + '<div style="text-align:center;padding:16px;background:#f8fafc;border-radius:8px;"><div style="font-size:1rem;font-weight:700;">⏰ ' + deadline + '</div><div style="font-size:0.85rem;color:#64748b;">截止时间</div></div>'
+                    + '</div>';
+
+                // 签到明细
+                var records = d.records || [];
+                html += '<h3 style="font-size:1rem;margin-bottom:12px;">签到明细 (' + checked + ' 人)</h3>';
+                if (!records.length) {
+                    html += '<div class="empty-state" style="padding:20px;"><p>暂无签到记录</p></div>';
+                } else {
+                    html += '<div class="table-wrap"><table class="admin-table"><thead><tr><th>姓名</th><th>时间</th><th>状态</th><th>置信度</th></tr></thead><tbody>';
+                    records.forEach(function(r) {
+                        var status = r.late ? '<span class="tag tag-yellow">⏰ 迟到' + (r.late_minutes||'') + '分</span>' : '<span class="tag tag-green">✅ 准时</span>';
+                        html += '<tr><td><strong>' + escHtml(r.name) + '</strong></td>'
+                            + '<td style="color:#64748b;font-size:0.85rem;">' + (r.time||'').substring(0,19) + '</td>'
+                            + '<td>' + status + '</td>'
+                            + '<td style="color:#64748b;font-size:0.85rem;">' + (r.confidence ? r.confidence.toFixed(3) : '-') + '</td></tr>';
+                    });
+                    html += '</tbody></table></div>';
+                }
+
+                // 预期参会设置快捷入口
+                html += '<div style="margin-top:16px;padding:16px;background:#f8fafc;border-radius:8px;">'
+                    + '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">'
+                    + '<span style="font-size:0.9rem;">📋 预期参会 <strong>' + expected + '</strong> 人 | 已签到 <strong>' + checked + '</strong> 人 | 未签到 <strong>' + Math.max(0, expected - checked) + '</strong> 人</span>'
+                    + '<div style="display:flex;gap:8px;">'
+                    + '<button class="btn btn-outline btn-sm" onclick="openPageView(\'/report/' + encodeURIComponent(meetingName) + '\',\'' + escHtml(meetingName) + ' - 报告\')">📊 详细报告</button>'
+                    + '<button class="btn btn-outline btn-sm" onclick="openPageView(\'/meeting/' + encodeURIComponent(meetingName) + '\',\'' + escHtml(meetingName) + ' - 设置\')">⚙️ 会议设置</button>'
+                    + '</div></div></div>';
+
+                // ─── 签到码管理 ──────────────────────
+                html += '<div class="content-card" style="margin-top:20px;">'
+                    + '<div class="card-header"><h2>🔢 签到码管理</h2>'
+                    + '<div style="display:flex;gap:8px;">'
+                    + '<button class="btn btn-primary btn-sm" onclick="generateCheckinCodes(\'' + escHtml(meetingName) + '\')">🔄 批量生成</button>'
+                    + '<a href="http://localhost:5005/kiosk/' + encodeURIComponent(meetingName) + '/codes" target="_blank" class="btn btn-outline btn-sm">🖨️ 打印签到码</a>'
+                    + '</div></div>'
+                    + '<div id="checkin-codes-content" style="font-size:0.9rem;color:#64748b;">加载中...</div>'
+                    + '</div>';
+
+                div.innerHTML = html;
+
+                // 加载签到码
+                loadCheckinCodes(meetingName);
+            });
+        }
+
+        // ═══════════════════════════════════════════
+        // 签到码管理
+        // ═══════════════════════════════════════════
+
+        function loadCheckinCodes(meetingName) {
+            var div = document.getElementById('checkin-codes-content');
+            if (!div) return;
+            // 从 kiosk API 获取签到码
+            api('/api/meeting/' + encodeURIComponent(meetingName) + '/checkin-codes')
+            .then(function(res) {
+                if (!res.ok || !res.data) {
+                    div.innerHTML = '<span style="color:#94a3b8;">无法加载签到码（kiosk 服务未运行？）</span>';
+                    return;
+                }
+                var items = res.data;
+                if (!items.length) {
+                    div.innerHTML = '<span style="color:#94a3b8;">暂无签到码，点击上方"批量生成"创建</span>';
+                    return;
+                }
+                var html = '<div class="table-wrap"><table class="admin-table"><thead><tr>'
+                    + '<th style="width:50px;">序号</th>'
+                    + '<th>姓名</th>'
+                    + '<th style="width:130px;">签到码</th>'
+                    + '<th style="width:80px;">状态</th>'
+                    + '<th style="width:80px;">操作</th>'
+                    + '</tr></thead><tbody>';
+                items.forEach(function(item, idx) {
+                    var statusHtml = item.checked_in
+                        ? '<span class="tag tag-green">✅ 已签到</span>'
+                        : '<span class="tag tag-gray">⏳ 未签到</span>';
+                    html += '<tr>'
+                        + '<td style="color:#94a3b8;">' + (idx + 1) + '</td>'
+                        + '<td><strong>' + escHtml(item.name) + '</strong></td>'
+                        + '<td style="font-family:\"Courier New\",monospace;font-size:1.1rem;font-weight:700;letter-spacing:2px;color:#2563eb;">' + escHtml(item.code) + '</td>'
+                        + '<td>' + statusHtml + '</td>'
+                        + '<td><button class="btn btn-text btn-sm" style="color:var(--primary);" onclick="resetOneCode(\'' + escHtml(meetingName) + '\',\'' + escHtml(item.name) + '\')">重置</button></td>'
+                        + '</tr>';
+                });
+                html += '</tbody></table></div>';
+                div.innerHTML = html;
+            })
+            .catch(function() {
+                div.innerHTML = '<span style="color:#ef4444;">加载失败，请确认 kiosk 签到台服务已启动（端口 5005）</span>';
+            });
+        }
+
+        function generateCheckinCodes(meetingName) {
+            if (!confirm('确定为此课程的所有参与者批量生成签到码？')) return;
+            fetch('/api/meeting/' + encodeURIComponent(meetingName) + '/checkin-codes/generate', {
+                method: 'POST', headers: {'Content-Type':'application/json'}
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) {
+                    showToast('已生成 ' + d.count + ' 个签到码', 'success');
+                    loadCheckinCodes(meetingName);
+                } else {
+                    showToast(d.error || '生成失败', 'error');
+                }
+            })
+            .catch(function() { showToast('网络错误', 'error'); });
+        }
+
+        function resetOneCode(meetingName, personName) {
+            if (!confirm('确定重置 "' + personName + '" 的签到码？')) return;
+            fetch('/api/meeting/' + encodeURIComponent(meetingName) + '/checkin-code/reset', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({name: personName})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) {
+                    showToast(personName + ' 的新签到码: ' + d.code, 'success');
+                    loadCheckinCodes(meetingName);
+                } else {
+                    showToast(d.error || '重置失败', 'error');
+                }
+            })
+            .catch(function() { showToast('网络错误', 'error'); });
+        }
+
+        // ===== 5. 自助注册管理 =====
+        function loadRegistrationPage() {
+            window.location.href = '/registration';
+        }
+    </script>
+</body>
+</html>

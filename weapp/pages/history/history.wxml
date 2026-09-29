@@ -1,0 +1,48 @@
+<view class="page">
+  <view class="header">
+    <text class="title">📋 签到历史</text>
+    <text class="subtitle">{{courseName}}</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">⏳ 加载中...</view>
+  <view wx:elif="{{sessions.length === 0}}" class="empty">暂无签到记录</view>
+
+  <block wx:for="{{sessions}}" wx:key="id">
+    <view class="card" bindtap="toggleSession" data-idx="{{index}}">
+      <view class="sess-top">
+        <text class="sess-name">{{item.name}}</text>
+        <text class="sess-badge {{item._rate >= 80 ? 'badge-green' : item._rate > 0 ? 'badge-yellow' : 'badge-gray'}}">{{item._rate}}%</text>
+      </view>
+      <view class="sess-stats">
+        <text class="sess-stat">已签 <text class="num green">{{item.checked}}</text></text>
+        <text class="sess-stat">未签 <text class="num red">{{item.unchecked_list.length}}</text></text>
+        <text class="sess-stat">共 <text class="num">{{item.total}}</text> 人</text>
+        <text class="sess-stat">签到率 <text class="num blue">{{item._rate}}%</text></text>
+      </view>
+
+      <!-- 展开详情 -->
+      <view wx:if="{{item._open}}" class="sess-detail">
+        <view class="detail-section">
+          <text class="detail-title green">✅ 已签到 ({{item.checked_list.length}})</text>
+          <view wx:if="{{item.checked_list.length === 0}}" class="detail-empty">暂无</view>
+          <view wx:for="{{item.checked_list}}" wx:key="*this" class="name-item checked">
+            <text class="name-avatar">{{item[0]}}</text>
+            <text>{{item}}</text>
+          </view>
+        </view>
+        <view class="detail-section">
+          <text class="detail-title red">⏳ 未签到 ({{item.unchecked_list.length}})</text>
+          <view wx:if="{{item.unchecked_list.length === 0}}" class="detail-empty">全员已签到 ✅</view>
+          <view wx:for="{{item.unchecked_list}}" wx:key="*this" class="name-item">
+            <text class="name-avatar gray">{{item[0]}}</text>
+            <text>{{item}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </block>
+
+  <view class="actions">
+    <button class="btn btn-outline" bindtap="goBack">← 返回</button>
+  </view>
+</view>

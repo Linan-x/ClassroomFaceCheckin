@@ -1,0 +1,44 @@
+# Python caches and local tooling
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local Python environments
+venv/
+.venv/
+env/
+
+# IDE and OS files
+.idea/
+.vscode/
+.claude/
+.DS_Store
+Thumbs.db
+
+# Runtime-generated data and logs
+*.log
+*.out
+work_space/log/
+data/tmp/
+
+# Local student and attendance data
+data/students/photos/
+data/students_index.json
+data/courses/*/participants/
+data/courses/*/attendance.json
+data/courses/*/meeting_info.json
+data/courses/*/participants_meta.json
+data/courses/*/sessions.json
+
+# Face databases and model/runtime artifacts
+data/class_faces/
+data/facebank/
+work_space/save/
+*.pt
+*.pth
+
+# Local mini-program settings
+weapp/project.private.config.json

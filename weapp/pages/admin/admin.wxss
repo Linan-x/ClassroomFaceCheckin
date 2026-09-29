@@ -1,0 +1,173 @@
+.page { min-height: 100vh; background: #f1f5f9; }
+
+/* ─── 顶部标签栏 ─── */
+.tab-bar {
+  display: flex; background: #fff; border-bottom: 1px solid #e2e8f0;
+  position: sticky; top: 0; z-index: 10;
+  flex-direction: row; justify-content: space-around;
+}
+.tab-item {
+  flex: 1; text-align: center; padding: 12px 2px; font-size: 0.78rem;
+  font-weight: 600; color: #94a3b8;
+  border-bottom: 2px solid transparent; position: relative;
+}
+.tab-item.active { color: #2563eb; border-bottom-color: #2563eb; background: #fafafa; }
+
+/* ─── 内容 ─── */
+.tab-content { padding: 10px; }
+
+/* ─── 卡片 ─── */
+.card {
+  background: #fff; border-radius: 10px; margin-bottom: 10px;
+  overflow: hidden;
+}
+.card-pad { padding: 14px 16px; }
+.card-title {
+  font-size: 0.9rem; font-weight: 700; color: #0f172a; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 4px;
+}
+
+/* ─── 输入行 ─── */
+.row {
+  display: flex; gap: 8px; align-items: center;
+}
+.row .input {
+  flex: 1; background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 8px; padding: 9px 12px; font-size: 0.85rem;
+  color: #1e293b; min-width: 0;
+}
+.picker-box {
+  background: #f8fafc; border: 1px solid #e2e8f0;
+  border-radius: 8px; padding: 9px 12px; font-size: 0.85rem;
+  color: #475569; display: flex; align-items: center;
+}
+
+/* ─── 按钮 ─── */
+.btn {
+  padding: 9px 16px; border-radius: 8px; border: none;
+  font-size: 0.82rem; font-weight: 600; text-align: center;
+  white-space: nowrap;
+}
+.btn-primary { background: #2563eb; color: #fff; }
+.btn-success { background: #10b981; color: #fff; }
+.btn-danger { background: #ef4444; color: #fff; }
+.btn-outline { background: #fff; border: 1px solid #e2e8f0; color: #475569; }
+.btn-sm { padding: 6px 10px; font-size: 0.75rem; border-radius: 6px; }
+.btn-block { width: 100%; margin-bottom: 6px; }
+
+/* ─── 列表项 ─── */
+.item {
+  display: flex; align-items: center; padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.item:last-child { border-bottom: none; }
+.item-icon {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: #eff6ff; color: #2563eb;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem; margin-right: 10px; flex-shrink: 0;
+}
+.item-body { flex: 1; min-width: 0; }
+.item-name { font-size: 0.88rem; font-weight: 600; color: #0f172a; display: block; }
+.item-info { font-size: 0.75rem; color: #94a3b8; display: block; margin-top: 1px; }
+.item-act { display: flex; gap: 4px; flex-shrink: 0; margin-left: 8px; }
+
+/* ─── 统计 ─── */
+.stats {
+  display: flex; gap: 6px; margin-bottom: 10px;
+}
+.stat {
+  flex: 1; background: #fff; border-radius: 8px; padding: 10px 4px;
+  text-align: center;
+}
+.stat-num { font-size: 1.3rem; font-weight: 800; display: block; }
+.stat-lbl { font-size: 0.65rem; color: #94a3b8; display: block; margin-top: 1px; }
+
+/* ─── 进度条 ─── */
+.bar { height: 4px; background: #e2e8f0; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.bar-fill { height: 100%; background: #10b981; border-radius: 2px; }
+
+/* ─── QR ─── */
+.qr-area { text-align: center; padding: 10px 0; }
+.qr-img { width: 160px; height: 160px; }
+.qr-url { font-size: 0.72rem; color: #2563eb; word-break: break-all;
+  background: #eff6ff; border-radius: 6px; padding: 6px 10px; margin-top: 6px; }
+
+/* ─── 班级卡片 ─── */
+.class-card {
+  background: #fff; border-radius: 12px; margin-bottom: 10px;
+  padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.class-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.class-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: #f0fdf4; color: #166534;
+  display: flex; align-items: center; justify-content: center; font-size: 18px;
+  flex-shrink: 0;
+}
+.class-info { flex: 1; min-width: 0; }
+.class-name { font-size: 15px; font-weight: 700; color: #0f172a; display: block; }
+.class-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
+.class-stat { font-size: 11px; color: #64748b; }
+.class-stat.fb-ready { color: #10b981; font-weight: 600; }
+.class-stat.fb-miss { color: #94a3b8; }
+.class-card-acts { display: flex; gap: 6px; border-top: 1px solid #f1f5f9; padding-top: 10px; }
+.btn-act {
+  flex: 1; padding: 7px 0; border-radius: 8px; border: none;
+  font-size: 12px; font-weight: 600; text-align: center;
+}
+.btn-build { background: #eff6ff; color: #2563eb; }
+.btn-del { background: #fef2f2; color: #ef4444; }
+.btn-act:active { opacity: 0.7; }
+
+/* ─── 课程卡片 ─── */
+.course-card {
+  background: #fff; border-radius: 14px; margin-bottom: 12px;
+  padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.course-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.course-left { flex: 1; min-width: 0; margin-right: 10px; }
+.course-name { font-size: 1.15rem; font-weight: 700; color: #0f172a; display: block; }
+.course-desc { font-size: 0.78rem; color: #64748b; display: block; margin-top: 2px; }
+.course-badge {
+  padding: 4px 12px; border-radius: 20px; font-size: 0.9rem;
+  font-weight: 800; white-space: nowrap; flex-shrink: 0;
+}
+.badge-green { background: #dcfce7; color: #166534; }
+.badge-yellow { background: #fef9c3; color: #854d0e; }
+.badge-gray { background: #f1f5f9; color: #64748b; }
+.course-stats {
+  display: flex; gap: 0; margin-bottom: 10px;
+  background: #f8fafc; border-radius: 10px; overflow: hidden;
+}
+.course-stat {
+  flex: 1; text-align: center; padding: 10px 2px;
+  border-right: 1px solid #e2e8f0;
+}
+.course-stat:last-child { border-right: none; }
+.cs-num { font-size: 1.1rem; font-weight: 800; display: block; color: #0f172a; }
+.cs-num.green { color: #10b981; }
+.cs-num.gray { color: #64748b; }
+.cs-num.blue { color: #3b82f6; }
+.cs-lbl { font-size: 0.65rem; color: #94a3b8; display: block; margin-top: 1px; }
+.course-bar-label { font-size: 0.68rem; color: #94a3b8; margin-top: 4px; text-align: right; }
+.tab-placeholder { height: 20px; }
+
+/* ─── 学生照片 ─── */
+.stu-photo { width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0; margin-right: 10px; }
+
+/* ─── 杂项 ─── */
+.loading, .empty { text-align: center; padding: 40px 20px; color: #94a3b8; font-size: 0.85rem; }
+.empty .icon { font-size: 2rem; display: block; margin-bottom: 6px; }
+.tag {
+  display: inline-block; padding: 1px 8px; border-radius: 4px;
+  font-size: 0.65rem; font-weight: 600; margin-left: 4px;
+}
+.tag-green { background: #dcfce7; color: #166534; }
+.tag-red { background: #fef2f2; color: #991b1b; }
+.sec-title { font-size: 0.82rem; font-weight: 700; color: #64748b; margin: 14px 0 6px; }
+.cb-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 14px; font-size: 0.85rem; border-bottom: 1px solid #f1f5f9;
+}
+.cb-row:last-child { border-bottom: none; }

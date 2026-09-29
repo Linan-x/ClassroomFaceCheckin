@@ -1,0 +1,33 @@
+.page { display: flex; flex-direction: column; height: 100vh; background: #0f172a; color: #fff; }
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; background: #1e293b;
+}
+.title { font-size: 1.05rem; font-weight: 700; }
+.count-badge {
+  background: #10b981; color: #fff; padding: 4px 12px;
+  border-radius: 12px; font-size: 0.85rem; font-weight: 700;
+}
+.camera-wrapper {
+  position: relative; width: 100%; height: 50vh; background: #000; overflow: hidden;
+}
+.camera-preview { width: 100%; height: 100%; }
+.face-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.status-bar {
+  text-align: center; padding: 12px;
+}
+.status-text { font-size: 1rem; font-weight: 600; }
+.status-text.success { color: #10b981; }
+.status-text.idle { color: #64748b; }
+.info-card {
+  margin: 0 16px; padding: 16px; background: #1e293b; border-radius: 12px;
+}
+.info-row {
+  display: flex; justify-content: space-between; padding: 8px 0;
+  border-bottom: 1px solid #334155;
+}
+.info-row:last-child { border-bottom: none; }
+.info-row .label { color: #94a3b8; font-size: 0.9rem; }
+.info-row .value { color: #fff; font-weight: 600; font-size: 0.9rem; }
+.actions { padding: 16px; }
+.actions .btn { width: 100%; }

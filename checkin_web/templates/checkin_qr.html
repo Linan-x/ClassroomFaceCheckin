@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>签到 - {{ meeting_name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system,"Microsoft YaHei",sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            min-height: 100vh; color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: #1e293b; border-radius: 24px; padding: 40px 32px;
+            width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .card .icon { font-size: 3rem; margin-bottom: 12px; }
+        .card h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
+        .card .desc { color: #94a3b8; font-size: 0.9rem; margin-bottom: 24px; }
+
+        .tabs {
+            display: flex; gap: 8px; margin-bottom: 24px;
+            background: #0f172a; border-radius: 12px; padding: 4px;
+        }
+        .tab {
+            flex: 1; padding: 10px; text-align: center; border-radius: 10px;
+            cursor: pointer; font-size: 0.95rem; font-weight: 500;
+            transition: all 0.2s; color: #64748b;
+        }
+        .tab.active { background: #10b981; color: #fff; }
+
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        /* 签到码输入 */
+        .code-input-group {
+            display: flex; gap: 10px; justify-content: center;
+            margin-bottom: 20px;
+        }
+        .code-digit {
+            width: 52px; height: 64px; text-align: center;
+            font-size: 1.8rem; font-weight: 800;
+            border: 2px solid #334155; border-radius: 12px;
+            background: #0f172a; color: #fff;
+            outline: none; transition: all 0.2s;
+            font-family: "Courier New", monospace;
+        }
+        .code-digit:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.2); }
+
+        .btn {
+            width: 100%; padding: 16px; border-radius: 14px;
+            border: none; font-size: 1.2rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: #10b981; color: #fff; }
+        .btn-primary:active { transform: scale(0.97); background: #059669; }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        /* 姓名搜索 */
+        .search-input {
+            width: 100%; padding: 14px 16px; border-radius: 12px;
+            border: 2px solid #334155; background: #0f172a;
+            color: #fff; font-size: 1rem; outline: none;
+            margin-bottom: 16px;
+        }
+        .search-input:focus { border-color: #2563eb; }
+        .search-input::placeholder { color: #475569; }
+
+        .name-list { max-height: 320px; overflow-y: auto; margin-bottom: 16px; }
+        .name-list::-webkit-scrollbar { width: 4px; }
+        .name-list::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+        .name-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 16px; border-radius: 12px;
+            cursor: pointer; transition: all 0.15s;
+            margin-bottom: 4px;
+        }
+        .name-item:hover { background: #334155; }
+        .name-item .name { font-size: 1.1rem; font-weight: 500; }
+        .name-item .dept { font-size: 0.8rem; color: #64748b; margin-left: 8px; }
+        .name-item .status { font-size: 0.8rem; }
+        .name-item .status.done { color: #10b981; }
+        .name-item .status.pending { color: #f59e0b; }
+
+        /* 反馈弹窗 */
+        .feedback {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 40px 50px; border-radius: 24px;
+            z-index: 100; text-align: center; display: none;
+            animation: popIn 0.3s ease; width: 320px;
+        }
+        .feedback.success { background: rgba(16,185,129,0.95); }
+        .feedback.error { background: rgba(239,68,68,0.95); }
+        .feedback .icon { font-size: 3rem; margin-bottom: 8px; }
+        .feedback .msg { font-size: 1.4rem; font-weight: 700; }
+        @keyframes popIn {
+            0% { transform: translate(-50%,-50%) scale(0.5); opacity: 0; }
+            100% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+        }
+
+        .checked-tag {
+            display: inline-block; padding: 4px 12px; border-radius: 20px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .checked-tag.done { background: rgba(16,185,129,0.2); color: #10b981; }
+        .checked-tag.pending { background: rgba(245,158,11,0.2); color: #fbbf24; }
+        .checked-tag.late { background: rgba(245,158,11,0.3); color: #fbbf24; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">📋</div>
+        <h1>{{ meeting_name }}</h1>
+        {% if description %}
+        <div class="desc">{{ description }}</div>
+        {% else %}
+        <div class="desc">请输入签到码或选择您的姓名签到</div>
+        {% endif %}
+
+        <!-- 签到方式切换 -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('code')">🔢 签到码</div>
+            <div class="tab" onclick="switchTab('name')">👤 选择姓名</div>
+        </div>
+
+        <!-- 签到码面板 -->
+        <div id="panel-code" class="panel active">
+            <div class="code-input-group">
+                <input class="code-digit" type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" id="d1" oninput="moveNext(1,2)" onkeydown="moveBack(1,0)">
+                <input class="code-digit" type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" id="d2" oninput="moveNext(2,3)" onkeydown="moveBack(2,1)">
+                <input class="code-digit" type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" id="d3" oninput="moveNext(3,4)" onkeydown="moveBack(3,2)">
+                <input class="code-digit" type="tel" maxlength="1" inputmode="numeric" pattern="[0-9]" id="d4" oninput="moveNext(4,5)" onkeydown="moveBack(4,3)">
+            </div>
+            <button class="btn btn-primary" id="btn-code-submit" onclick="submitCode()" disabled>签到</button>
+        </div>
+
+        <!-- 选择姓名面板 -->
+        <div id="panel-name" class="panel">
+            <input class="search-input" type="text" id="name-search" placeholder="🔍 输入姓名搜索..." oninput="searchName()">
+            <div class="name-list" id="name-list">
+                <div style="text-align:center;color:#64748b;padding:20px;">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 反馈弹窗 -->
+    <div id="feedback" class="feedback">
+        <div class="icon" id="fb-icon"></div>
+        <div class="msg" id="fb-msg"></div>
+    </div>
+
+    <script>
+        const MEETING_NAME = '{{ meeting_name }}';
+        let participants = [];
+        let checkedNames = new Set();
+        let feedbackTimer = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadParticipants();
+            // 自动聚焦到第一个输入框
+            setTimeout(function() { var d = document.getElementById('d1'); if (d) d.focus(); }, 500);
+        });
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+            if (tab === 'code') {
+                document.querySelector('.tabs .tab:first-child').classList.add('active');
+                document.getElementById('panel-code').classList.add('active');
+                setTimeout(function() { var d = document.getElementById('d1'); if (d) d.focus(); }, 100);
+            } else {
+                document.querySelector('.tabs .tab:last-child').classList.add('active');
+                document.getElementById('panel-name').classList.add('active');
+                document.getElementById('name-search').focus();
+            }
+        }
+
+        // ── 签到码输入 ──
+        function moveNext(cur, next) {
+            var input = document.getElementById('d' + cur);
+            if (input.value.length >= 1 && next <= 4) {
+                document.getElementById('d' + next).focus();
+            }
+            checkCodeComplete();
+        }
+        function moveBack(cur, prev) {
+            if (event.key === 'Backspace' && document.getElementById('d' + cur).value === '' && prev > 0) {
+                document.getElementById('d' + prev).focus();
+                document.getElementById('d' + prev).value = '';
+            }
+            checkCodeComplete();
+        }
+        function checkCodeComplete() {
+            var code = '';
+            for (var i = 1; i <= 4; i++) {
+                code += document.getElementById('d' + i).value;
+            }
+            document.getElementById('btn-code-submit').disabled = code.length < 4;
+        }
+
+        function submitCode() {
+            var code = '';
+            for (var i = 1; i <= 4; i++) {
+                code += document.getElementById('d' + i).value;
+            }
+            if (code.length < 4) return;
+
+            var btn = document.getElementById('btn-code-submit');
+            btn.disabled = true; btn.textContent = '⏳ 签到中...';
+
+            fetch('/api/meeting/' + encodeURIComponent(MEETING_NAME) + '/checkin-by-code', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({code: code})
+            })
+            .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+            .then(function(res) {
+                if (res.ok && res.data.success) {
+                    showFeedback('success', '✅ 签到成功！\n' + (res.data.record ? res.data.record.name : ''));
+                    // 清空输入
+                    for (var i = 1; i <= 4; i++) document.getElementById('d' + i).value = '';
+                    checkCodeComplete();
+                    loadParticipants(); // 刷新状态
+                } else if (res.data.error === '您已签到，无需重复签到') {
+                    showFeedback('success', '✅ 您已签到');
+                    for (var i = 1; i <= 4; i++) document.getElementById('d' + i).value = '';
+                    checkCodeComplete();
+                } else {
+                    showFeedback('error', '❌ ' + (res.data.error || '签到失败'));
+                }
+            })
+            .catch(function() { showFeedback('error', '❌ 网络错误'); })
+            .then(function() {
+                btn.disabled = false; btn.textContent = '签到';
+            });
+        }
+
+        // ── 姓名选择 ──
+        function loadParticipants() {
+            fetch('/api/meeting/' + encodeURIComponent(MEETING_NAME) + '/checkin-codes')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                participants = data || [];
+                // 获取已签到名单
+                fetch('/api/meeting/' + encodeURIComponent(MEETING_NAME) + '/checkin/status')
+                .then(function(r) { return r.json(); })
+                .then(function(status) {
+                    if (status && status.checked_names) {
+                        checkedNames = new Set(status.checked_names);
+                    }
+                    renderNameList('');
+                });
+            })
+            .catch(function() {
+                document.getElementById('name-list').innerHTML = '<div style="text-align:center;color:#ef4444;padding:20px;">加载失败</div>';
+            });
+        }
+
+        function searchName() {
+            var q = document.getElementById('name-search').value.trim();
+            renderNameList(q);
+        }
+
+        function renderNameList(query) {
+            var list = document.getElementById('name-list');
+            var filtered = participants;
+            if (query) {
+                filtered = participants.filter(function(p) { return p.name.indexOf(query) !== -1; });
+            }
+            if (!filtered.length) {
+                list.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">'
+                    + (query ? '未找到 "' + query + '"' : '暂无参与者') + '</div>';
+                return;
+            }
+            var html = '';
+            filtered.forEach(function(p) {
+                var isChecked = checkedNames.has(p.name);
+                var statusHtml = isChecked
+                    ? '<span class="checked-tag done">✅ 已签到</span>'
+                    : '<span class="checked-tag pending">⏳ 未签到</span>';
+                html += '<div class="name-item" onclick="' + (isChecked ? '' : 'checkinByName(\'' + escHtml(p.name) + '\')') + '">'
+                    + '<div><span class="name">' + escHtml(p.name) + '</span>'
+                    + (p.phone ? '<span class="dept">' + escHtml(p.phone) + '</span>' : '')
+                    + '</div>'
+                    + '<div class="status ' + (isChecked ? 'done' : 'pending') + '">' + statusHtml + '</div>'
+                    + '</div>';
+            });
+            list.innerHTML = html;
+        }
+
+        function checkinByName(name) {
+            // 通过码签到：先找到这个人的码
+            var person = participants.find(function(p) { return p.name === name; });
+            if (!person) return;
+            if (person.checked_in) {
+                showFeedback('success', '✅ ' + name + ' 已签到');
+                return;
+            }
+
+            fetch('/api/meeting/' + encodeURIComponent(MEETING_NAME) + '/checkin-by-code', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({code: person.code})
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success || d.error === '您已签到') {
+                    showFeedback('success', '✅ ' + name + ' 签到成功！');
+                    loadParticipants();
+                } else {
+                    showFeedback('error', '❌ ' + (d.error || '签到失败'));
+                }
+            })
+            .catch(function() { showFeedback('error', '❌ 网络错误'); });
+        }
+
+        // ── 通用 ──
+        function escHtml(s) {
+            var d = document.createElement('div');
+            d.textContent = s; return d.innerHTML;
+        }
+
+        function showFeedback(type, msg) {
+            var fb = document.getElementById('feedback');
+            document.getElementById('fb-icon').textContent = type === 'success' ? '✅' : '❌';
+            document.getElementById('fb-msg').textContent = msg;
+            fb.className = 'feedback ' + type;
+            fb.style.display = 'block';
+            fb.style.animation = 'popIn 0.3s ease';
+            if (feedbackTimer) clearTimeout(feedbackTimer);
+            feedbackTimer = setTimeout(function() {
+                fb.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

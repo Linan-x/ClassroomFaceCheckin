@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}会议详情 - {{ meeting_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+    <a href="/" class="btn btn-text">← 返回</a>
+    <h1>📋 <span id="meeting-title">{{ meeting_name }}</span></h1>
+    <span id="meeting-status" class="status-badge">加载中...</span>
+</div>
+
+<!-- 统计卡片 -->
+<div class="stats-row" id="meeting-stats">
+    <div class="stat-card"><div class="stat-num" id="stat-total">0</div><div class="stat-label">已注册</div></div>
+    <div class="stat-card"><div class="stat-num blue" id="stat-expected">0</div><div class="stat-label">预期参会</div></div>
+    <div class="stat-card"><div class="stat-num green" id="stat-checked">0</div><div class="stat-label">已签到</div></div>
+    <div class="stat-card"><div class="stat-num red" id="stat-unchecked">0</div><div class="stat-label">未签到</div></div>
+    <div class="stat-card"><div class="stat-num blue" id="stat-rate">0%</div><div class="stat-label">签到率</div></div>
+</div>
+
+<!-- 课程设置 -->
+<div class="card">
+    <div class="card-header">
+        <h2>⚙️ 课程设置</h2>
+        <button class="btn btn-outline btn-sm" onclick="saveMeetingSettings()">💾 保存设置</button>
+    </div>
+    <div class="settings-grid">
+        <div class="form-group"><label>课程日期</label><input id="meeting-date" type="date" class="form-input" style="max-width:200px;"></div>
+        <div class="form-group">
+            <label>签到截止时间</label>
+            <div class="input-group">
+                <input id="deadline-input" type="time" class="form-input" style="max-width:160px;">
+                <button class="btn btn-text btn-sm" onclick="clearDeadline()">清除</button>
+                <span id="deadline-status" style="font-size:0.85rem;color:var(--text-secondary);"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 关联班级 -->
+<div class="card">
+    <div class="card-header"><h2>🏢 关联班级</h2>
+        <button class="btn btn-outline btn-sm" onclick="saveCourseClasses()">💾 保存关联</button>
+    </div>
+    <p class="hint">关联班级后，该班级所有学生将自动加入此课程</p>
+    <div id="course-classes-list"><span class="loading">加载中...</span></div>
+</div>
+
+<!-- 学生管理 -->
+<div class="card">
+    <div class="card-header">
+        <h2>👤 学生管理 (<span id="participant-count">0</span>)</h2>
+        <div class="header-actions">
+            <input id="participant-search" type="text" class="form-input" style="max-width:160px;font-size:0.85rem;" placeholder="🔍 搜索..." oninput="searchParticipants(this.value)">
+            <button class="btn btn-outline btn-sm" onclick="showAddParticipant()">＋ 添加</button>
+            <button class="btn btn-outline btn-sm" onclick="showBatchUpload()">📁 批量照片</button>
+            <button class="btn btn-outline btn-sm" onclick="showPhoneUpload()">📞 批量电话</button>
+            <button class="btn btn-outline btn-sm" onclick="exportParticipantList()">📥 导出</button>
+            <button class="btn btn-danger btn-sm" id="btn-batch-delete" style="display:none;" onclick="batchDelete()">🗑 删除选中</button>
+        </div>
+    </div>
+    <!-- 班级筛选 -->
+    <div id="dept-filter" class="dept-filter" style="margin-bottom:12px;display:none;">
+        <button class="dept-filter-btn active" onclick="filterByDept('')">全部</button>
+    </div>
+    <div id="participant-list" class="participant-grid"><div class="loading">加载中...</div></div>
+</div>
+
+<!-- 预期签到学生设置 -->
+<div class="card">
+    <div class="card-header"><h2>📋 预期签到学生</h2><button class="btn btn-outline btn-sm" onclick="saveExpected()">💾 保存</button></div>
+    <p class="hint">勾选预期参加的人，仅统计已勾选人员的签到率</p>
+    <div id="expected-list"><div class="loading">加载中...</div></div>
+</div>
+
+<!-- 操作面板 -->
+<div class="action-panel">
+    <button class="btn btn-warning btn-lg" onclick="buildFacebank()">🔧 构建特征库</button>
+    <a href="/report/{{ meeting_name }}" class="btn btn-info btn-lg">📊 签到报告</a>
+</div>
+
+<!-- 签到台多实例入口 -->
+<div class="card">
+    <div class="card-header"><h2>📸 签到台</h2></div>
+    <div style="display:flex;flex-wrap:wrap;gap:12px;">
+        <a href="http://localhost:5001/kiosk/{{ meeting_name }}" target="_blank" class="btn btn-success btn-lg" style="flex:1;text-align:center;">
+            📸 默认签到台 (5001)
+        </a>
+        <a href="http://localhost:5002/kiosk/{{ meeting_name }}" target="_blank" class="btn btn-outline btn-lg" style="flex:1;text-align:center;">
+            📸 签到台 2 (5002)
+        </a>
+        <a href="http://localhost:5003/kiosk/{{ meeting_name }}" target="_blank" class="btn btn-outline btn-lg" style="flex:1;text-align:center;">
+            📸 签到台 3 (5003)
+        </a>
+    </div>
+    <details style="margin-top:12px;font-size:0.85rem;color:#64748b;">
+        <summary style="cursor:pointer;">💡 为此课程启动独立签到台</summary>
+        <pre style="background:#f1f5f9;padding:12px;border-radius:8px;margin-top:8px;overflow-x:auto;white-space:pre-wrap;">
+# 在新终端中执行（更换端口号可启动多个）
+cd D:\LiNan\InsightFace_Pytorch-master
+&amp; "C:\ProgramData\miniconda3\envs\insightface\python.exe" checkin_web\kiosk.py --port 5002 --meeting "{{ meeting_name }}" --label "{{ meeting_name }} 签到台"</pre>
+    </details>
+</div>
+
+<!-- 自助注册二维码 -->
+<div class="card">
+    <div class="card-header"><h2>📱 学生自助注册</h2></div>
+    <p class="hint">生成二维码，学生扫码后自拍+输入姓名即可注册</p>
+    <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;margin-top:12px;">
+        <div id="qr-display" style="background:#fff;padding:12px;border-radius:12px;width:180px;height:180px;display:flex;align-items:center;justify-content:center;">
+            <span id="qr-placeholder" style="color:#94a3b8;font-size:0.85rem;">点击生成</span>
+            <img id="qr-image" src="" style="width:160px;height:160px;display:none;">
+        </div>
+        <div style="flex:1;min-width:200px;">
+            <div style="font-size:0.9rem;color:#64748b;margin-bottom:8px;">
+                注册链接: <span id="reg-url" style="color:#2563eb;"></span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-primary btn-sm" onclick="generateQR()">🔄 生成二维码</button>
+                <a id="reg-link-btn" href="#" target="_blank" class="btn btn-outline btn-sm" style="display:none;">🔗 打开注册页</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加学生弹窗 -->
+<div id="add-modal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+        <h2>添加学生</h2>
+        <div class="form-group"><label>姓名 *</label><input id="participant-name" type="text" class="form-input"></div>
+        <div class="form-group"><label>班级</label><select id="add-dept-select" class="form-input"><option value="">— 无 —</option></select></div>
+        <div class="form-group"><label>电话</label><input id="participant-phone" type="text" class="form-input" placeholder="可选"></div>
+        <div class="form-group"><label>照片</label><input id="participant-photo" type="file" class="form-input" accept="image/*"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideAddParticipant()">取消</button>
+            <button class="btn btn-primary" onclick="addParticipant()">添加</button>
+        </div>
+    </div>
+</div>
+
+<!-- 批量上传照片弹窗 -->
+<div id="batch-modal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+        <h2>📁 批量上传照片</h2>
+        <p class="hint">先选择班级，再上传照片（文件名=姓名）</p>
+        <div class="form-group"><label>所属班级</label><select id="batch-dept-select" class="form-input"><option value="">— 无班级 —</option></select></div>
+        <div class="form-group"><label>照片文件（文件名=姓名）</label><input id="batch-photos" type="file" class="form-input" accept="image/*" multiple></div>
+        <div id="batch-preview" class="batch-preview"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideBatchUpload()">取消</button>
+            <button class="btn btn-primary" onclick="batchUpload()">上传并添加</button>
+        </div>
+    </div>
+</div>
+
+<!-- 批量上传电话弹窗 -->
+<div id="phone-modal" class="modal-overlay" style="display:none;">
+    <div class="modal" style="max-width:600px;">
+        <h2>📞 批量上传联系方式</h2>
+        <p class="hint">每行一个：姓名,电话,班级（电话和班级可选）</p>
+        <div class="form-group"><label>数据（CSV 格式）</label>
+            <textarea id="phone-data" class="form-input" rows="8" placeholder="张三,13800138000,技术部&#10;李四,13900139000,市场部&#10;王五,,人事部"></textarea>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hidePhoneUpload()">取消</button>
+            <button class="btn btn-primary" onclick="uploadPhones()">上传</button>
+        </div>
+    </div>
+</div>
+
+<!-- 重命名弹窗 -->
+<div id="rename-modal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+        <h2>重命名学生</h2>
+        <div class="form-group"><label>新姓名</label><input id="rename-input" type="text" class="form-input"></div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideRenameModal()">取消</button>
+            <button class="btn btn-primary" onclick="confirmRename()">保存</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="toast" style="display:none;"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MEETING_NAME = '{{ meeting_name }}';
+let renameTarget = '';
+let currentDeptFilter = '';
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadMeetingDetail();
+    loadExpectedAttendees();
+    loadMeetingSettings();
+    loadDepartments();
+    setInterval(loadMeetingStats, 5000);
+});
+
+function generateQR() {
+    var btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ 生成中...';
+    var baseUrl = window.location.origin;
+    var regUrl = baseUrl + '/register/' + encodeURIComponent(MEETING_NAME);
+    document.getElementById('reg-url').textContent = regUrl;
+    document.getElementById('reg-link-btn').href = regUrl;
+    document.getElementById('reg-link-btn').style.display = 'inline-flex';
+
+    var qrImg = document.getElementById('qr-image');
+    qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=' + encodeURIComponent(regUrl);
+    qrImg.style.display = 'block';
+    qrImg.onload = function() {
+        document.getElementById('qr-placeholder').style.display = 'none';
+        btn.disabled = false;
+        btn.textContent = '🔄 重新生成';
+    };
+    qrImg.onerror = function() {
+        document.getElementById('qr-placeholder').textContent = '二维码加载失败，请复制链接';
+        btn.disabled = false;
+        btn.textContent = '🔄 重试';
+    };
+}
+</script>
+{% endblock %}

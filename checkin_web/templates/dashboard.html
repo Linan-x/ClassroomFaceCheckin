@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}会议签到系统 - 首页{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h1>📋 所有会议</h1>
+    <button class="btn btn-primary btn-lg" onclick="showCreateMeeting()">＋ 创建会议</button>
+</div>
+
+<div id="meeting-list" class="meeting-grid">
+    <div class="loading">加载中...</div>
+</div>
+
+<div id="empty-state" class="empty-state" style="display:none;">
+    <div class="empty-icon">📋</div>
+    <h2>暂无会议</h2>
+    <p>创建您的第一个会议，开始人脸识别签到</p>
+    <button class="btn btn-primary btn-lg" onclick="showCreateMeeting()">＋ 创建会议</button>
+</div>
+
+<!-- 创建会议弹窗 -->
+<div id="create-modal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+        <h2>创建新会议</h2>
+        <div class="form-group">
+            <label>会议名称 *</label>
+            <input id="meeting-name" type="text" class="form-input" placeholder="例如：项目评审会" autofocus>
+        </div>
+        <div class="form-group">
+            <label>会议描述</label>
+            <input id="meeting-desc" type="text" class="form-input" placeholder="可选描述">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="hideCreateMeeting()">取消</button>
+            <button class="btn btn-primary" onclick="createMeeting()">创建</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', loadMeetings);
+</script>
+{% endblock %}

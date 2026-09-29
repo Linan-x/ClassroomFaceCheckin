@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>签到台</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body { background: #0f172a; color: #fff; }
+        .main { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+        h1 { text-align: center; font-size: 2rem; margin-bottom: 40px; color: #e2e8f0; }
+        .kiosk-card {
+            background: #1e293b;
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 16px;
+            text-decoration: none;
+            display: block;
+            color: #fff;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .kiosk-card:hover { border-color: #10b981; transform: translateY(-2px); }
+        .kiosk-card h2 { font-size: 1.5rem; margin-bottom: 8px; }
+        .kiosk-card .meta { color: #94a3b8; font-size: 0.9rem; }
+        .kiosk-card .progress { margin-top: 12px; }
+        .kiosk-card .progress-bar { height: 8px; background: #334155; border-radius: 4px; overflow: hidden; }
+        .kiosk-card .progress-fill { height: 100%; background: #10b981; border-radius: 4px; transition: width 0.5s; }
+        .empty { text-align: center; padding: 60px; color: #64748b; }
+        .empty h2 { font-size: 1.5rem; margin-top: 16px; }
+        .version { text-align: center; color: #475569; font-size: 0.8rem; margin-top: 40px; }
+    </style>
+</head>
+<body>
+    <div class="main">
+        <h1>📋 签到台</h1>
+        <div id="meeting-list">
+            {% if meetings %}
+                {% for m in meetings %}
+                <a href="/kiosk/{{ m.name }}" class="kiosk-card">
+                    <h2>{{ m.name }}</h2>
+                    {% if m.description %}
+                    <div class="meta">{{ m.description }}</div>
+                    {% endif %}
+                    <div class="meta">
+                        参与者 {{ m.participant_count }} 人 |
+                        已签到 {{ m.checked_in }} 人
+                    </div>
+                    {% set rate = (m.checked_in / m.participant_count * 100) if m.participant_count > 0 else 0 %}
+                    {% if m.participant_count > 0 %}
+                    <div class="progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width:{{ rate }}%"></div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            {% else %}
+                <div class="empty">
+                    <div style="font-size:4rem;">📋</div>
+                    <h2>暂无课程</h2>
+                    <p style="margin-top:8px;">请先在管理后台创建课程</p>
+                </div>
+            {% endif %}
+        </div>
+        <div class="version">
+            签到台 v1.0 | 需配合管理后台使用
+            <br><br>
+            <details style="text-align:left;display:inline-block;">
+                <summary style="cursor:pointer;color:#64748b;font-size:0.85rem;">💡 多会议同时签到？启动多个签到台实例</summary>
+                <pre style="background:#1e293b;padding:12px;border-radius:8px;margin-top:8px;font-size:0.75rem;color:#94a3b8;text-align:left;overflow-x:auto;">
+# 实例1（默认端口5001，选择课程）
+python checkin_web\kiosk.py --port 5001
+
+# 实例2（直接绑定"项目评审"会议，自动跳转）
+python checkin_web\kiosk.py --port 5002 --meeting "项目评审" --label "评审签到台"
+
+# 实例3（绑定"晨会"，自动开始签到）
+python checkin_web\kiosk.py --port 5003 --meeting "晨会" --auto-start
+                </pre>
+            </details>
+        </div>
+    </div>
+</body>
+</html>

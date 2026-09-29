@@ -1,0 +1,16 @@
+<view class="page">
+  <view class="hero">
+    <text class="hero-title">📋 课堂签到</text>
+  </view>
+
+  <view class="list">
+    <block wx:for="{{courses}}" wx:key="name">
+      <view class="course-card" bindtap="goCourse" data-name="{{item.name}}">
+        <text class="cc-name">{{item.name}}</text>
+      </view>
+    </block>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading">⏳ 加载中...</view>
+  <view wx:elif="{{courses.length === 0}}" class="empty">暂无课程</view>
+</view>

@@ -1,0 +1,87 @@
+╔══════════════════════════════════════════════════════════╗
+║          人脸识别签到系统 — 启动与配置说明              ║
+╚══════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+一、环境配置
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 创建 Conda 环境
+   conda create -n insightface python=3.7
+   conda activate insightface
+
+2. 安装依赖
+   pip install flask flask-cors numpy pillow opencv-python
+
+   # CPU版 PyTorch：
+   pip install torch==1.13.1+cpu torchvision==0.14.1+cpu ^
+       -f https://download.pytorch.org/whl/torch_stable.html
+
+   # GPU版（需 CUDA 11.7）：
+   pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 ^
+       -f https://download.pytorch.org/whl/cu117
+
+3. 下载模型权重
+   MTCNN 权重 → core/mtcnn_pytorch/src/weights/
+   （pnet.npy, rnet.npy, onet.npy）
+   下载地址：
+   https://github.com/StrangerThings98/MTCNN-Pytorch/tree/master/src/weights
+
+   MobileFaceNet 权重 → work_space/save/model_mobilefacenet.pth
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+二、启动服务（8090端口，统一管理）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   conda activate insightface
+   python start_all.py
+
+   访问地址：
+     管理后台:   http://localhost:8090/
+     签到台:     http://localhost:8090/kiosk/课程名
+     实时大屏:   http://localhost:8090/dashboard/课程名
+     学生注册:   http://localhost:8090/register/课程名
+     注册管理:   http://localhost:8090/registration
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+三、微信小程序配置
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 用微信开发者工具打开 weapp/ 目录
+2. 修改 weapp/app.js 中的服务器地址：
+     serverUrl: 'http://你的服务器IP:8090'
+3. 修改 weapp/project.config.json：
+     "urlCheck": false   （关闭域名校验）
+4. 编译运行
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+四、FRP 远程访问（可选）
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   frpc.exe -c frpc.toml
+   公网地址: http://linan.xyz:18088
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+五、快速使用流程
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. 启动服务
+2. 浏览器打开管理后台 http://localhost:8090/
+3. 创建课程
+4. 班级管理 → 添加班级
+5. 学生管理 → 添加学生（拍照）
+6. 回到课程详情 → 关联班级 → 保存
+7. 签到管理 → 构建特征库
+8. 小程序 → 课程详情 → 新建签到 → 开始识别
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+六、常见问题
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• 特征库构建0人 → 检查课程participants目录是否有学生照片
+• 签到报400 → 检查FRP是否运行、小程序urlCheck是否关闭
+• 第二次签到不保存 → 已修复（按session过滤）
+• 签到率>100% → 已修复（按session统计）
+• 启动崩溃（GBK） → 已修复（avoid emoji in print）
+ & "D:\conda\envs\insightface\python.exe" start_all.py
+ conda activate insightface; python start_all.py 

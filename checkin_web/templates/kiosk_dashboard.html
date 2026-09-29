@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>签到看板 - {{ meeting_name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system,"Microsoft YaHei",sans-serif;
+            background: #0f172a; color: #e2e8f0;
+            width: 100vw; height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column;
+        }
+
+        /* 顶部 */
+        .header {
+            padding: 24px 40px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid #1e293b;
+        }
+        .header .meeting {
+            font-size: 2rem; font-weight: 700;
+        }
+        .header .meeting .desc {
+            font-size: 1rem; color: #64748b; font-weight: 400; margin-left: 16px;
+        }
+        .header .clock {
+            font-size: 1.6rem; font-weight: 600; color: #94a3b8;
+            font-family: "Courier New", monospace;
+        }
+
+        /* 主体网格 */
+        .main-grid {
+            flex: 1; display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0;
+            min-height: 0;
+        }
+
+        /* 中间大圆环统计 */
+        .center-panel {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 20px;
+            border-right: 1px solid #1e293b;
+        }
+        .ring-container {
+            position: relative; width: 260px; height: 260px;
+            margin-bottom: 20px;
+        }
+        .ring-container svg { transform: rotate(-90deg); }
+        .ring-bg { fill: none; stroke: #1e293b; stroke-width: 12; }
+        .ring-fg { fill: none; stroke: #10b981; stroke-width: 12; stroke-linecap: round;
+                   transition: stroke-dashoffset 0.8s ease; }
+        .ring-center {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+        }
+        .ring-center .big-num {
+            font-size: 4rem; font-weight: 800; line-height: 1;
+        }
+        .ring-center .big-num .total { color: #64748b; font-size: 2.5rem; }
+        .ring-center .label { color: #94a3b8; font-size: 1.1rem; margin-top: 4px; }
+
+        .progress-text {
+            font-size: 1.8rem; font-weight: 700; color: #10b981;
+        }
+        .sub-stats {
+            display: flex; gap: 40px; margin-top: 16px;
+        }
+        .sub-stat { text-align: center; }
+        .sub-stat .num { font-size: 1.8rem; font-weight: 700; }
+        .sub-stat .label { font-size: 0.85rem; color: #64748b; margin-top: 2px; }
+        .sub-stat.late .num { color: #f59e0b; }
+        .sub-stat.absent .num { color: #ef4444; }
+
+        /* 人员卡片网格 */
+        .people-grid {
+            flex: 1; overflow-y: auto; padding: 16px 24px 24px 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 14px; align-content: start;
+        }
+        .people-grid::-webkit-scrollbar { width: 3px; }
+        .people-grid::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+        .person-card {
+            display: flex; flex-direction: column; align-items: center;
+            padding: 16px 8px 12px; border-radius: 14px;
+            text-align: center; transition: all 0.2s;
+        }
+        .person-card.checked { background: rgba(16,185,129,0.12); }
+        .person-card.unchecked { background: rgba(255,255,255,0.03); }
+        .person-card .avatar-circle {
+            width: 56px; height: 56px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.6rem; font-weight: 700; color: #fff;
+            margin-bottom: 6px; flex-shrink: 0;
+        }
+        .person-card.checked .avatar-circle { background: #10b981; }
+        .person-card.unchecked .avatar-circle { background: #475569; }
+        .person-card .pname {
+            font-size: 1rem; font-weight: 600; color: #e2e8f0;
+            max-width: 90px; overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .person-card .ptime {
+            font-size: 0.75rem; color: #94a3b8; margin-top: 2px;
+        }
+        .person-card .pstatus {
+            font-size: 0.7rem; font-weight: 600; margin-top: 4px;
+            padding: 2px 10px; border-radius: 10px;
+        }
+        .person-card.checked .pstatus { background: rgba(16,185,129,0.2); color: #10b981; }
+        .person-card.unchecked .pstatus { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .section-divider {
+            text-align: center; padding: 6px; margin: 4px 0 8px 0;
+            font-size: 0.8rem; color: #64748b;
+            border-bottom: 1px solid #1e293b;
+        }
+
+        /* 底部状态 */
+        .footer {
+            padding: 12px 40px;
+            border-top: 1px solid #1e293b;
+            display: flex; justify-content: space-between;
+            font-size: 0.9rem; color: #475569;
+            background: #0a0f1a;
+        }
+        .footer .status-dot {
+            display: inline-block; width: 8px; height: 8px;
+            border-radius: 50%; margin-right: 6px;
+        }
+        .footer .status-dot.live { background: #10b981; animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* 无数据 */
+        .empty-state { text-align: center; padding: 40px; color: #64748b; }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
+
+        @media (max-width: 1024px) {
+            .main-grid { grid-template-columns: 1fr 1fr; }
+            .right-panel { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="meeting">
+            📋 {{ meeting_name }}
+            {% if description %}<span class="desc">{{ description }}</span>{% endif %}
+        </div>
+        <div class="clock" id="clock">--:--:--</div>
+    </div>
+
+    <div class="main-grid" id="dashboard-content">
+        <div class="center-panel" id="center-panel">
+            <div class="ring-container" id="ring-container">
+                <svg width="260" height="260" viewBox="0 0 260 260">
+                    <circle class="ring-bg" cx="130" cy="130" r="110"/>
+                    <circle class="ring-fg" id="ring-fg" cx="130" cy="130" r="110"
+                            stroke-dasharray="691" stroke-dashoffset="691"/>
+                </svg>
+                <div class="ring-center">
+                    <div class="big-num"><span id="big-checked">0</span><span class="total">/<span id="big-total">0</span></span></div>
+                    <div class="label">已签到</div>
+                </div>
+            </div>
+            <div class="progress-text" id="progress-text">0%</div>
+            <div class="sub-stats">
+                <div class="sub-stat late">
+                    <div class="num" id="stat-late">0</div>
+                    <div class="label">迟到</div>
+                </div>
+                <div class="sub-stat absent">
+                    <div class="num" id="stat-absent">0</div>
+                    <div class="label">未签到</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 人员卡片网格：已签到（绿）+ 未签到（灰） -->
+        <div class="people-grid" id="people-grid" style="grid-column:2/4;border-left:1px solid #1e293b;">
+            <div class="empty-state"><p>加载中...</p></div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <span><span class="status-dot live"></span>实时更新中</span>
+        <span id="footer-info">加载中...</span>
+        <span>按 Esc 退出</span>
+    </div>
+
+    <script>
+        const MEETING_NAME = '{{ meeting_name }}';
+        const RING_CIRCUMFERENCE = 691; // 2 * PI * 110
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            loadDashboard();
+            setInterval(loadDashboard, 3000);
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') { window.close(); }
+        });
+
+        function updateClock() {
+            var now = new Date();
+            document.getElementById('clock').textContent =
+                String(now.getHours()).padStart(2,'0') + ':' +
+                String(now.getMinutes()).padStart(2,'0') + ':' +
+                String(now.getSeconds()).padStart(2,'0');
+        }
+
+        function loadDashboard() {
+            // 同时加载报告和签到状态
+            Promise.all([
+                fetch('/api/meeting/' + encodeURIComponent(MEETING_NAME) + '/report').then(function(r) { return r.json(); }),
+                fetch('/api/meeting/' + encodeURIComponent(MEETING_NAME) + '/checkin/status').then(function(r) { return r.json(); })
+            ]).then(function(results) {
+                var report = results[0] || {};
+                var status = results[1] || {};
+
+                updateRing(report);
+                updateNameLists(status, report.records);
+
+                document.getElementById('footer-info').textContent =
+                    '已签到 ' + (report.checked_in || 0) + '/' + (report.total_participants || 0) +
+                    ' · 签到率 ' + (report.checkin_rate || '0%') +
+                    ' · 更新于 ' + new Date().toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+            }).catch(function() {
+                document.getElementById('footer-info').textContent = '加载失败，正在重试...';
+            });
+        }
+
+        function updateRing(report) {
+            var total = report.total_participants || 0;
+            var checked = report.checked_in || 0;
+            var late = report.late_count || 0;
+            var absent = total - checked;
+            var rate = total > 0 ? checked / total : 0;
+
+            document.getElementById('big-checked').textContent = checked;
+            document.getElementById('big-total').textContent = total;
+            document.getElementById('stat-late').textContent = late;
+            document.getElementById('stat-absent').textContent = Math.max(0, absent);
+            document.getElementById('progress-text').textContent = Math.round(rate * 100) + '%';
+
+            var ring = document.getElementById('ring-fg');
+            var offset = RING_CIRCUMFERENCE * (1 - rate);
+            ring.setAttribute('stroke-dashoffset', offset);
+            // 颜色随进度变化
+            if (rate >= 0.8) ring.setAttribute('stroke', '#10b981');
+            else if (rate >= 0.5) ring.setAttribute('stroke', '#f59e0b');
+            else ring.setAttribute('stroke', '#ef4444');
+        }
+
+        function updateNameLists(status, records) {
+            var checkedNames = status.checked_names || [];
+            var uncheckedNames = status.unchecked_names || [];
+
+            // 更新顶部统计
+            document.getElementById('big-checked').textContent = checkedNames.length;
+            document.getElementById('big-total').textContent = checkedNames.length + uncheckedNames.length;
+            document.getElementById('stat-absent').textContent = uncheckedNames.length;
+
+            var grid = document.getElementById('people-grid');
+            if (checkedNames.length === 0 && uncheckedNames.length === 0) {
+                grid.innerHTML = '<div class="empty-state"><p>暂无参与者</p></div>';
+                return;
+            }
+
+            var recordMap = {};
+            (records || []).forEach(function(r) { recordMap[r.name] = r.time; });
+
+            var html = '';
+
+            // ── 已签到区域 ──
+            if (checkedNames.length > 0) {
+                html += '<div style="grid-column:1/-1;font-size:1rem;font-weight:600;color:#10b981;padding:8px 0 4px 0;border-bottom:1px solid rgba(16,185,129,0.2);margin-bottom:4px;">✅ 已签到 (' + checkedNames.length + ')</div>';
+                checkedNames.forEach(function(n) {
+                    var firstChar = n.charAt(0) || '?';
+                    var timeStr = recordMap[n] ? recordMap[n].substring(11, 19) : '';
+                    html += '<div class="person-card checked">'
+                        + '<div class="avatar-circle">' + escHtml(firstChar) + '</div>'
+                        + '<div class="pname">' + escHtml(n) + '</div>'
+                        + (timeStr ? '<div class="ptime">' + timeStr + '</div>' : '')
+                        + '<div class="pstatus">已签到</div>'
+                        + '</div>';
+                });
+            }
+
+            // ── 未签到区域 ──
+            if (uncheckedNames.length > 0) {
+                html += '<div style="grid-column:1/-1;font-size:1rem;font-weight:600;color:#f59e0b;padding:12px 0 4px 0;border-bottom:1px solid rgba(245,158,11,0.2);margin-bottom:4px;">⏳ 未签到 (' + uncheckedNames.length + ')</div>';
+                uncheckedNames.forEach(function(n) {
+                    var firstChar = n.charAt(0) || '?';
+                    html += '<div class="person-card unchecked">'
+                        + '<div class="avatar-circle">' + escHtml(firstChar) + '</div>'
+                        + '<div class="pname">' + escHtml(n) + '</div>'
+                        + '<div class="pstatus">未签到</div>'
+                        + '</div>';
+                });
+            }
+
+            // 全部签到完成
+            if (uncheckedNames.length === 0 && checkedNames.length > 0) {
+                html += '<div style="grid-column:1/-1;text-align:center;padding:30px;font-size:1.2rem;color:#10b981;">✅ 全员已签到</div>';
+            }
+
+            grid.innerHTML = html;
+        }
+
+        function escHtml(s) {
+            var d = document.createElement('div');
+            d.textContent = s; return d.innerHTML;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>自助注册 - {{ meeting_name }}{% if reg_class %} (班级){% endif %}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system,"Microsoft YaHei",sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            min-height: 100vh; color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        .card {
+            background: #1e293b; border-radius: 24px; padding: 32px 24px;
+            width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .card h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+        .card .desc { color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px; }
+
+        /* 照片区域 */
+        .photo-box {
+            width: 100%; aspect-ratio: 1/1; max-height: 280px;
+            background: #0f172a; border-radius: 16px; overflow: hidden;
+            margin-bottom: 16px; position: relative;
+            border: 2px dashed #334155;
+            cursor: pointer; display: flex; align-items: center;
+            justify-content: center;
+        }
+        .photo-box .placeholder {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center; color: #64748b;
+        }
+        .photo-box .placeholder .icon { font-size: 3rem; margin-bottom: 8px; }
+        .photo-box img { width: 100%; height: 100%; object-fit: cover; display: none; }
+
+        .btn {
+            width: 100%; padding: 14px; border-radius: 14px;
+            border: none; font-size: 1.1rem; font-weight: 700;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-primary:active { transform: scale(0.97); background: #1d4ed8; }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .btn-success { background: #10b981; color: #fff; }
+        .btn-success:active { transform: scale(0.97); background: #059669; }
+        .btn-outline {
+            background: transparent; border: 2px solid #334155;
+            color: #94a3b8; margin-top: 8px;
+        }
+        .btn-outline:active { border-color: #2563eb; color: #2563eb; }
+
+        .form-input {
+            width: 100%; padding: 12px 16px; border-radius: 12px;
+            border: 2px solid #334155; background: #0f172a;
+            color: #fff; font-size: 1rem; outline: none; margin-bottom: 12px;
+        }
+        .form-input:focus { border-color: #2563eb; }
+        .form-input::placeholder { color: #475569; }
+
+        .feedback {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 40px 50px; border-radius: 24px;
+            z-index: 100; text-align: center; display: none;
+            animation: popIn 0.3s ease; width: 300px;
+        }
+        .feedback.success { background: rgba(16,185,129,0.95); }
+        .feedback.error { background: rgba(239,68,68,0.95); }
+        .feedback .icon { font-size: 3rem; margin-bottom: 8px; }
+        .feedback .msg { font-size: 1.4rem; font-weight: 700; }
+        .feedback .sub { font-size: 0.9rem; opacity: 0.8; margin-top: 4px; }
+        @keyframes popIn {
+            0% { transform: translate(-50%,-50%) scale(0.5); opacity: 0; }
+            100% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>📷 自助注册{% if reg_class %}<span style="font-size:1rem;color:#10b981;"> (班级)</span>{% endif %}</h1>
+        <div class="desc">{{ meeting_name }}{% if description %} · {{ description }}{% endif %}</div>
+
+        <!-- 点击拍照/选照片 -->
+        <div class="photo-box" id="photo-box" onclick="selectPhoto()">
+            <div class="placeholder" id="placeholder">
+                <div class="icon">📸</div>
+                <div>点击拍照或选择照片</div>
+            </div>
+            <img id="preview-img">
+        </div>
+        <input type="file" id="file-input" accept="image/*" capture="environment"
+               style="display:none" onchange="onPhotoSelected(event)">
+
+        <!-- 输入姓名 -->
+        <input class="form-input" id="name-input" type="text" placeholder="请输入你的姓名" maxlength="20">
+
+        <!-- 选择班级 -->
+        <select class="form-input" id="class-select">
+            <option value="">— 请选择班级（可选）—</option>
+            {% for dept in departments %}
+            <option value="{{ dept }}">{{ dept }}</option>
+            {% endfor %}
+        </select>
+
+        <!-- 按钮 -->
+        <button class="btn btn-success" id="btn-submit" onclick="submitReg()">✅ 提交注册</button>
+    </div>
+
+    <!-- 反馈弹窗 -->
+    <div id="feedback" class="feedback">
+        <div class="icon" id="fb-icon"></div>
+        <div class="msg" id="fb-msg"></div>
+        <div class="sub" id="fb-sub"></div>
+    </div>
+
+    <script>
+        const MEETING_NAME = '{{ meeting_name }}';
+        const REG_TYPE = '{{ reg_class or "" }}';
+        let selectedFile = null;
+
+        function selectPhoto() {
+            document.getElementById('file-input').click();
+        }
+
+        function onPhotoSelected(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            selectedFile = file;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('preview-img');
+                img.src = e.target.result;
+                img.style.display = 'block';
+                document.getElementById('placeholder').style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function submitReg() {
+            const name = document.getElementById('name-input').value.trim();
+            if (!name) { showFeedback('error', '❌ 请输入姓名'); return; }
+            if (!selectedFile) { showFeedback('error', '❌ 请先拍照或选择照片'); return; }
+
+            const btn = document.getElementById('btn-submit');
+            btn.disabled = true;
+            btn.textContent = '⏳ 提交中...';
+
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('photo', selectedFile);
+            var classSelect = document.getElementById('class-select');
+            if (classSelect) formData.append('class_name', classSelect.value);
+
+            var apiUrl = REG_TYPE ? '/api/register/class/' : '/api/register/';
+            fetch(apiUrl + encodeURIComponent(MEETING_NAME), {
+                method: 'POST', body: formData
+            })
+            .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+            .then(function(res) {
+                if (res.ok && res.data.success) {
+                    showFeedback('success', '✅ 注册成功！', res.data.name + '，请等待教师构建特征库');
+                    document.getElementById('name-input').value = '';
+                    selectedFile = null;
+                    document.getElementById('preview-img').style.display = 'none';
+                    document.getElementById('placeholder').style.display = 'flex';
+                } else {
+                    showFeedback('error', '❌ ' + (res.data.error || '注册失败'));
+                }
+                btn.disabled = false;
+                btn.textContent = '✅ 提交注册';
+            })
+            .catch(function() {
+                showFeedback('error', '❌ 网络错误');
+                btn.disabled = false;
+                btn.textContent = '✅ 提交注册';
+            });
+        }
+
+        function showFeedback(type, msg, sub) {
+            const fb = document.getElementById('feedback');
+            document.getElementById('fb-icon').textContent = type === 'success' ? '✅' : '❌';
+            document.getElementById('fb-msg').textContent = msg;
+            document.getElementById('fb-sub').textContent = sub || '';
+            fb.className = 'feedback ' + type;
+            fb.style.display = 'block';
+            fb.style.animation = 'popIn 0.3s ease';
+            setTimeout(function() { fb.style.display = 'none'; }, 3000);
+        }
+    </script>
+</body>
+</html>

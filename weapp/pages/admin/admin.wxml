@@ -1,0 +1,213 @@
+<view class="page">
+  <!-- 顶部标签栏 -->
+  <view class="tab-bar">
+    <view class="tab-item {{currentTab === 'courses' ? 'active' : ''}}" data-tab="courses" bindtap="switchTab">课程</view>
+    <view class="tab-item {{currentTab === 'classes' ? 'active' : ''}}" data-tab="classes" bindtap="switchTab">班级</view>
+    <view class="tab-item {{currentTab === 'students' ? 'active' : ''}}" data-tab="students" bindtap="switchTab">学生</view>
+    <view class="tab-item {{currentTab === 'checkin' ? 'active' : ''}}" data-tab="checkin" bindtap="switchTab">签到</view>
+  </view>
+
+  <!-- ═══ 课程管理 ═══ -->
+  <view wx:if="{{currentTab === 'courses'}}" class="tab-content">
+    <!-- 创建课程 -->
+    <view class="card card-pad" style="margin-bottom:12px;">
+      <view class="card-title">📊 课程管理</view>
+      <view class="row">
+        <input class="input" placeholder="新课程名称" bindinput="onNewCourseInput" value="{{newCourseName}}" />
+        <button class="btn btn-primary" bindtap="createCourse" style="padding:9px 20px;">创建</button>
+      </view>
+    </view>
+
+    <view wx:if="{{loading}}" class="loading">⏳ 加载中...</view>
+    <view wx:elif="{{courses.length === 0}}" class="empty"><text class="icon">📋</text>暂无课程，点击上方创建</view>
+
+    <!-- 课程卡片列表 -->
+    <block wx:for="{{courses}}" wx:key="name">
+      <view class="course-card" bindtap="onCourseTap" data-name="{{item.name}}" data-idx="{{index}}">
+        <view class="course-top">
+          <view class="course-left">
+            <text class="course-name">{{item.name}}</text>
+            <text class="course-desc" wx:if="{{item.description}}">{{item.description}}</text>
+          </view>
+          <view class="course-badge {{item._rate >= 80 ? 'badge-green' : item._rate > 0 ? 'badge-yellow' : 'badge-gray'}}">{{item._rate}}%</view>
+        </view>
+        <view class="course-stats">
+          <view class="course-stat">
+            <text class="cs-num">{{item.participant_count || 0}}</text>
+            <text class="cs-lbl">学生</text>
+          </view>
+          <view class="course-stat">
+            <text class="cs-num green">{{item.checked_in || 0}}</text>
+            <text class="cs-lbl">已签到</text>
+          </view>
+          <view class="course-stat">
+            <text class="cs-num gray">{{(item.participant_count || 0) - (item.checked_in || 0)}}</text>
+            <text class="cs-lbl">未签到</text>
+          </view>
+          <view class="course-stat">
+            <text class="cs-num blue">{{item.participant_count || 0}}</text>
+            <text class="cs-lbl">总人数</text>
+          </view>
+        </view>
+        <view class="bar"><view class="bar-fill" style="width:{{item._rate || 0}}%;"></view></view>
+        <view class="course-bar-label">{{item._rate || 0}}% 签到率</view>
+      </view>
+    </block>
+    <view class="card card-pad" bindtap="goDetect" style="text-align:center;background:#f0fdf4;">
+      <text style="color:#166534;font-weight:600;">🧪 人脸检测测试</text>
+    </view>
+  </view>
+
+  <!-- ═══ 班级管理 ═══ -->
+  <view wx:elif="{{currentTab === 'classes'}}" class="tab-content">
+    <view class="card card-pad">
+      <view class="card-title">🏢 班级管理</view>
+      <view class="row">
+        <input class="input" placeholder="新班级名称" bindinput="onNewClassInput" value="{{newClassName}}" />
+        <button class="btn btn-primary" bindtap="createClass" style="padding:9px 20px;flex-shrink:0;">＋ 添加</button>
+      </view>
+      <text style="font-size:12px;color:#94a3b8;margin-top:6px;display:block;">共 {{classes.length}} 个班级</text>
+    </view>
+
+    <view wx:if="{{loading}}" class="loading">⏳ 加载中...</view>
+    <view wx:elif="{{classes.length === 0}}" class="empty"><text class="icon">🏢</text>暂无班级</view>
+
+    <block wx:for="{{classes}}" wx:key="this">
+      <view class="class-card">
+        <view class="class-card-top">
+          <view class="class-icon">🏢</view>
+          <view class="class-info">
+            <text class="class-name">{{item}}</text>
+            <view class="class-meta">
+              <text class="class-stat">👤 {{classStudentCount[item] || '?'}} 人</text>
+              <text wx:if="{{classFbStatus[item]}}" class="class-stat fb-ready">✅ 特征库 {{classFbStatus[item]}}</text>
+              <text wx:else class="class-stat fb-miss">⏳ 未构建特征库</text>
+            </view>
+          </view>
+        </view>
+        <view class="class-card-acts">
+          <button class="btn-act btn-build" bindtap="buildClassFacebank" data-name="{{item}}">🔧 构建</button>
+          <button class="btn-act btn-del" bindtap="deleteClass" data-name="{{item}}">删除</button>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- ═══ 学生管理（全局，不依赖课程） ═══ -->
+  <view wx:elif="{{currentTab === 'students'}}" class="tab-content">
+    <view class="card card-pad">
+      <view class="card-title">👤 学生管理</view>
+      <view class="row">
+        <input class="input" placeholder="搜索姓名" bindinput="onSearchStudent" value="{{studentQuery}}" />
+        <button class="btn btn-primary btn-sm" bindtap="showAddStudent">＋添加</button>
+      </view>
+    </view>
+
+    <view class="card card-pad" bindtap="showRegQR">
+      <view class="row">
+        <text style="font-size:14px;font-weight:600;flex:1;">📱 扫码自助注册</text>
+        <text style="color:#2563eb;font-size:13px;">生成 →</text>
+      </view>
+      <text style="font-size:11px;color:#94a3b8;display:block;margin-top:4px;">学生扫码后自拍+输入姓名即可自动注册</text>
+    </view>
+
+    <view wx:if="{{loading}}" class="loading">⏳ 加载中...</view>
+    <view wx:elif="{{students.length === 0}}" class="empty"><text class="icon">👤</text>暂无学生</view>
+
+    <block wx:for="{{students}}" wx:key="name">
+      <view class="card card-pad" bindtap="onStudentTap" data-name="{{item.name}}" data-dept="{{item.class || ''}}" data-phone="{{item.phone || ''}}">
+        <view class="item" style="padding:0;">
+          <image wx:if="{{item.has_photo}}" class="stu-photo" src="{{API}}/api/global/students/{{item.name}}/photo" mode="aspectFill" />
+          <view wx:else class="item-icon" style="background:#fef3c7;color:#b45309;">{{item.name[0]}}</view>
+          <view class="item-body">
+            <text class="item-name">{{item.name}}</text>
+            <text class="item-info">{{item.class || '未分班'}} · 📞 {{item.phone || '--'}} · 📚 {{item.courses.length || 0}}课</text>
+          </view>
+          <view class="item-act">
+            <button class="btn btn-sm btn-danger" catchtap="deleteStudent" data-name="{{item.name}}">删除</button>
+          </view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- ═══ 签到管理 ═══ -->
+  <view wx:elif="{{currentTab === 'checkin'}}" class="tab-content">
+    <view class="card card-pad">
+      <view class="card-title">✅ 签到管理</view>
+      <picker mode="selector" range="{{courseList}}" bindchange="onReportCourseChange">
+        <view class="picker-box">📚 {{selectedReportCourse || '选择课程'}}</view>
+      </picker>
+    </view>
+
+    <view wx:if="{{!selectedReportCourse}}" class="empty"><text class="icon">✅</text>请先选择课程</view>
+    <view wx:else>
+      <view wx:if="{{loading}}" class="loading">⏳ 加载中...</view>
+      <view wx:else>
+        <view class="stats">
+          <view class="stat"><text class="stat-num">{{report.total_participants || 0}}</text><text class="stat-lbl">已注册</text></view>
+          <view class="stat"><text class="stat-num" style="color:#10b981;">{{report.checked_in || 0}}</text><text class="stat-lbl">已签到</text></view>
+          <view class="stat"><text class="stat-num" style="color:#ef4444;">{{report.not_checked_in || 0}}</text><text class="stat-lbl">未签到</text></view>
+          <view class="stat"><text class="stat-num" style="color:#2563eb;">{{report.checkin_rate || '0%'}}</text><text class="stat-lbl">签到率</text></view>
+        </view>
+
+        <view class="sec-title">📋 签到明细</view>
+        <view wx:if="{{!report.records || report.records.length === 0}}" class="empty">暂无记录</view>
+
+        <block wx:for="{{report.records || []}}" wx:key="time">
+          <view class="card card-pad" style="padding:10px 14px;">
+            <view class="item" style="padding:0;">
+              <view class="item-icon" style="width:30px;height:30px;font-size:0.8rem;">{{item.name[0]}}</view>
+              <view class="item-body">
+                <text class="item-name">{{item.name}}</text>
+                <text class="item-info">{{item.time ? item.time.substring(11,19) : ''}} <text class="tag {{item.late ? 'tag-red' : 'tag-green'}}">{{item.late ? '迟到' : '准时'}}</text></text>
+              </view>
+              <text style="font-size:0.7rem;color:#94a3b8;">{{item.confidence ? item.confidence.toFixed(2) : ''}}</text>
+            </view>
+          </view>
+        </block>
+      </view>
+    </view>
+  </view>
+
+  
+    <view wx:else>
+      <view wx:if="{{loading}}" class="loading">⏳ 加载中...</view>
+      <view wx:else>
+        <view class="stats">
+          <view class="stat"><text class="stat-num">{{regTotal}}</text><text class="stat-lbl">已注册</text></view>
+          <view class="stat"><text class="stat-num" style="color:#10b981;">{{regChecked}}</text><text class="stat-lbl">已签到</text></view>
+        </view>
+
+        <view class="card card-pad">
+          <view class="card-title">📷 注册二维码</view>
+          <view wx:if="{{qrCodeUrl}}" class="qr-area">
+            <image class="qr-img" src="{{qrCodeUrl}}" mode="widthFix" />
+          </view>
+          <view wx:if="{{regUrl}}" class="qr-url">{{regUrl}}</view>
+          <view class="row" style="margin-top:8px;">
+            <button class="btn btn-primary btn-sm" style="flex:1;" bindtap="generateQR">🔄 生成</button>
+            <button class="btn btn-outline btn-sm" style="flex:1;" bindtap="copyRegUrl">📋 复制</button>
+          </view>
+        </view>
+
+        <view class="card card-pad">
+          <view class="card-title">📦 批量导入</view>
+          <picker mode="selector" range="{{allClasses}}" bindchange="onBatchClassChange">
+            <view class="picker-box">🏢 {{selectedBatchClass || '选择班级'}}</view>
+          </picker>
+          <view wx:if="{{selectedBatchClass}}">
+            <view style="margin:8px 0;background:#fafafa;border-radius:6px;">
+              <block wx:for="{{regCourses}}" wx:key="name">
+                <view class="cb-row" data-value="{{item.name}}" bindtap="toggleBatchCourse">
+                  <checkbox value="{{item.name}}" checked="{{item.checked}}" />
+                  <text>{{item.name}}</text>
+                </view>
+              </block>
+            </view>
+            <button class="btn btn-success btn-block" bindtap="executeBatchImport">📥 执行导入</button>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>

@@ -1,0 +1,40 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/checkin/checkin",
+    "pages/result/result",
+    "pages/detect/detect",
+    "pages/admin/admin",
+    "pages/course/course",
+    "pages/history/history"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#ffffff",
+    "navigationBarTitleText": "课堂签到",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f5f5f5",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#94a3b8",
+    "selectedColor": "#2563eb",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "iconPath": "images/tab_home.png",
+        "selectedIconPath": "images/tab_home_hl.png",
+        "text": "课程"
+      },
+      {
+        "pagePath": "pages/admin/admin",
+        "iconPath": "images/tab_admin.png",
+        "selectedIconPath": "images/tab_admin_hl.png",
+        "text": "管理"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

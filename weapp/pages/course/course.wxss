@@ -1,0 +1,18 @@
+.page { min-height: 100vh; background: #f5f6fa; padding: 16px; }
+.header { margin-bottom: 20px; }
+.course-name { font-size: 24px; font-weight: 800; color: #0f172a; display: block; }
+.session-name { font-size: 13px; color: #10b981; margin-top: 4px; display: block; }
+
+.card {
+  background: #fff; border-radius: 14px; margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.action-card {
+  display: flex; align-items: center; padding: 18px 20px;
+}
+.action-card:active { transform: scale(0.98); opacity: 0.85; }
+.action-icon { font-size: 24px; margin-right: 14px; flex-shrink: 0; }
+.action-body { flex: 1; min-width: 0; }
+.action-title { font-size: 16px; font-weight: 700; color: #0f172a; display: block; }
+.action-desc { font-size: 12px; color: #64748b; margin-top: 2px; display: block; }
+.action-arrow { font-size: 13px; color: #2563eb; font-weight: 600; flex-shrink: 0; }

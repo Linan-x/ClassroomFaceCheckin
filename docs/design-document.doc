@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+body { font-family: 'Microsoft YaHei', sans-serif; max-width: 900px; margin: 40px auto; padding: 20px; line-height: 1.7; color: #333; }
+h1 { font-size: 24pt; color: #1a1a2e; border-bottom: 3px solid #2563eb; padding-bottom: 10px; }
+h2 { font-size: 18pt; color: #1a1a2e; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; margin-top: 30px; }
+h3 { font-size: 14pt; color: #334155; margin-top: 20px; }
+table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+th { background: #f1f5f9; font-weight: 600; }
+code { background: #f1f5f9; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; }
+pre code { background: none; color: #e2e8f0; }
+blockquote { border-left: 4px solid #2563eb; padding: 10px 20px; margin: 15px 0; background: #f8fafc; }
+li { margin: 4px 0; }
+</style>
+</head><body>
+<h1>人脸识别签到系统 — 设计文档</h1>
+<br>
+<blockquote>版本 2.0 | 2026年6月</blockquote>
+<br>
+<hr>
+<br>
+<h2>1. 问题定义</h2>
+<br>
+<h3>1.1 背景</h3>
+<p>传统课堂/会议签到方式存在以下痛点：</p>
+<li>**纸质名单**：发放、回收、统计效率极低</li>
+<li>**扫码签到**：需学生主动操作，易遗漏</li>
+<li>**刷卡签到**：需硬件设备，代签无法防范</li>
+<li>**统计困难**：迟到、缺勤数据需人工整理</li>
+<br>
+<h3>1.2 目标</h3>
+<p>构建一套基于人脸识别的智能签到系统，实现：</p>
+<li>**无感签到**：学生入镜即自动识别，无需任何操作</li>
+<li>**实时反馈**：签到结果即时显示在大屏和教师手机</li>
+<li>**多课多次**：同一课程可进行多次独立签到</li>
+<li>**跨平台**：教师手机（微信小程序）+ 电脑后台（Web）</li>
+<br>
+<h3>1.3 用户场景</h3>
+<li>1. 教师创建课程，导入学生名单与照片</li>
+<li>2. 教师打开小程序，选择课程和签到次数</li>
+<li>3. 学生依次进入教室，摄像头自动识别签到</li>
+<li>4. 大屏实时显示签到进度，已签/未签一目了然</li>
+<li>5. 教师查看签到报告，导出数据</li>
+<br>
+<hr>
+<br>
+<h2>2. 核心模型与算法</h2>
+<br>
+<h3>2.1 人脸检测：MTCNN</h3>
+<br>
+<p>MTCNN（Multi-Task Cascaded Convolutional Networks）是一个三阶段级联架构：</p>
+<br>
+<pre>
+输入图像 → PNet (Proposal Network) → RNet (Refine Network) → ONet (Output Network)
+</pre>
+<br>
+<li>**PNet**：快速扫描全图，生成大量候选框</li>
+<li>**RNet**：对候选框精炼过滤，去除假阳性</li>
+<li>**ONet**：输出最终人脸框 + 5个关键点坐标</li>
+<br>
+<pre>
+参数: min_face_size=20, face_limit=50
+耗时: ~30ms (CPU), ~5ms (GPU)
+</pre>
+<br>
+<h3>2.2 人脸识别：MobileFaceNet + ArcFace</h3>
+<br>
+<p>MobileFaceNet 是轻量级 CNN，专为移动端设计：</p>
+<br>
+<pre>
+MobileFaceNet(输入112x112) → 512维特征向量 → L2归一化
+                         ↕
+              ArcFace Loss (训练时使用)
+</pre>
+<br>
+<li>**特征维度**：512</li>
+<li>**输入尺寸**：112x112</li>
+<li>**推理耗时**：~80ms (CPU), ~5ms (GPU)</li>
+<li>**TTA增强**：原图 + 水平翻转，取平均特征</li>
+<br>
+<h3>2.3 识别流程</h3>
+<br>
+<pre>
+拍照(takePhoto) → JPEG压缩 → HTTP上传 → MTCNN检测
+→ MobileFaceNet特征提取 → 与Facebank对比 → 距离&lt;1.0 → 签到
+</pre>
+<br>
+<h3>2.4 签到次数（Session）机制</h3>
+<br>
+<p>每次签到独立记录，按 <code>name + session_id</code> 双重去重：</p>
+<br>
+<pre>
+def record_checkin(course, name, score, session='1'):
+    records = load_attendance(course)
+    for r in records:
+        if r['name'] == name and r.get('session') == session:
+            return False  # 同一次签到内不重复
+</pre>
+<br>
+<hr>
+<br>
+<h2>3. 系统架构</h2>
+<br>
+<h3>3.1 总体架构</h3>
+<br>
+<pre>
+┌─────────────────────────────────────────────────────────┐
+│                    微信小程序 (WeApp)                     │
+│  ┌──────┐ ┌────────┐ ┌────────┐ ┌──────┐ ┌──────────┐  │
+│  │课程列表│ │课程详情│ │实时签到│ │签到结果│ │管理后台  │  │
+│  └──────┘ └────────┘ └────────┘ └──────┘ └──────────┘  │
+└──────────────────────┬──────────────────────────────────┘
+                       │ HTTP API
+                       ▼
+┌─────────────────────────────────────────────────────────┐
+│                  Flask Web 服务 (端口 8088)               │
+│  checkin_web/app.py — 80+ 路由                          │
+│  ├ 课程管理接口  ├ 学生管理接口  ├ 签到接口  ├ 移动端API │
+└──────────────┬──────────────────────────────────────────┘
+               │
+┌──────────────┴──────────────────────────────────────────┐
+│                    核心模块                               │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │
+│  │ course.py│ │checkin.py│ │report.py │ │ Learner  │   │
+│  │ 课程/学生 │ │ 签到记录  │ │ 报告统计  │ │ 识别模型 │   │
+│  │ 班级/特征 │ │ 去重管理  │ │ 数据导出  │ │ MTCNN   │   │
+│  └──────────┘ └──────────┘ └──────────┘ └──────────┘   │
+└─────────────────────────────────────────────────────────┘
+
+数据存储:
+  JSON文件: data/courses/{name}/, data/students/, data/classes.json
+  Tensor:   facebank.pth [n, 512], names.npy
+  Image:    data/students/photos/{name}.jpg
+</pre>
+<br>
+<h3>3.2 数据模型</h3>
+<br>
+<pre>
+全局学生 (students_index.json)
+├── name: 唯一标识
+├── class: 所属班级
+├── phone: 电话
+├── courses: 报名课程列表
+
+全局班级 (classes.json)
+└── 班级名称数组 ["计算机一班", "计算机二班"]
+
+课程 (data/courses/{name}/)
+├── meeting_info.json    课程信息 + 关联班级
+├── participants/{name}/ 学生照片
+├── facebank.pth         特征张量
+├── attendance.json      签到记录
+├── sessions.json        签到次数管理
+└── checkin_codes.json   签到码
+</pre>
+<br>
+<h3>3.3 API 路由设计</h3>
+<br>
+<table>
+<tr><td>分组</td><td>示例路由</td><td>说明</td></tr>
+<tr><td>------</td><td>---------</td><td>------</td></tr>
+<tr><td>课程</td><td>GET /api/meetings</td><td>CRUD</td></tr>
+<tr><td>学生</td><td>GET /api/global/students</td><td>全局增删改查</td></tr>
+<tr><td>班级</td><td>POST /api/global-classes</td><td>全局管理</td></tr>
+<tr><td>关联</td><td>POST /api/course/{name}/classes</td><td>班级→课程</td></tr>
+<tr><td>签到次数</td><td>POST /api/course/{name}/sessions</td><td>新建/切换</td></tr>
+<tr><td>特征库</td><td>POST /api/meeting/{name}/build</td><td>构建facebank</td></tr>
+<tr><td>移动端</td><td>POST /api/mobile/checkin</td><td>小程序签到</td></tr>
+</table>
+<br>
+<hr>
+<br>
+<h2>4. 难点与解决方案</h2>
+<br>
+<h3>4.1 微信小程序摄像头数据获取</h3>
+<p><b>难点</b>：需实时获取摄像头帧数据上传识别，但小程序功能受限。</p>
+<p><b>方案</b>：采用 <code>takePhoto()</code> + <code>wx.uploadFile()</code> 组合，放弃 <code>onCameraFrame()</code> + canvas（兼容性差）。</p>
+<br>
+<h3>4.2 多用户同时签到</h3>
+<p><b>难点</b>：多人在镜头前同时出现时需一次性识别。</p>
+<p><b>方案</b>：MTCNN 的 <code>align_multi()</code> 支持同时检测多张人脸，<code>face_limit=50</code>。</p>
+<br>
+<h3>4.3 同一课程多次签到</h3>
+<p><b>难点</b>：同一课程在不同日期的签到需独立记录，不能混淆。</p>
+<p><b>方案</b>：Session 机制，每条签到记录带 session_id，去重和统计都按 session 过滤。</p>
+<br>
+<h3>4.4 跨平台数据一致性</h3>
+<p><b>难点</b>：Web 后台和小程序共享同一套数据，班级和学生需独立于课程存在。</p>
+<p><b>方案</b>：全局学生索引 + 全局班级注册表，课程只通过"关联"引用班级。</p>
+<br>
+<h3>4.5 Python 3.7 兼容</h3>
+<p><b>难点</b>：环境使用 Python 3.7，<code>Path.unlink()</code> 不支持 <code>missing_ok</code> 参数。</p>
+<p><b>方案</b>：所有 <code>unlink(missing_ok=True)</code> 改为 <code>if path.exists(): path.unlink()</code>。</p>
+<br>
+<h3>4.6 Windows GBK 编码</h3>
+<p><b>难点</b>：Windows 终端默认 GBK 编码，print emoji 会崩溃。</p>
+<p><b>方案</b>：<code>start_all.py</code> 中使用 ASCII 安全字符替代 emoji。</p>
+<br>
+<hr>
+<br>
+<h2>5. AI 工具使用说明</h2>
+<br>
+<h3>5.1 使用的 AI 工具</h3>
+<p>本项目使用 <b>Claude Code（Anthropic Claude）</b> 作为 AI 辅助开发工具，版本为 Claude Opus 4 / Sonnet 4。</p>
+<br>
+<h3>5.2 典型提示词（Prompts）</h3>
+<br>
+<p><b>需求分析与架构设计：</b></p>
+<pre>
+我想做一个基于 InsightFace_Pytorch 的人脸识别会议签到系统，
+需要 Web 管理后台和微信小程序，该怎么做？
+</pre>
+<br>
+<p><b>功能迭代：</b></p>
+<pre>
+学生注册可以选择课程和班级，不同课程可以批量导入班级学生，
+学生只能选择一个班级多个课程
+</pre>
+<br>
+<p><b>Bug 修复：</b></p>
+<pre>
+删除课程时会把已注册的学生信息删除，学生信息应该可以单独存在
+</pre>
+<br>
+<p><b>界面优化：</b></p>
+<pre>
+重新设计课程那一页的布局，适合移动端
+</pre>
+<br>
+<h3>5.3 AI 生成的内容范围</h3>
+<br>
+<table>
+<tr><td>模块</td><td>AI 参与程度</td><td>说明</td></tr>
+<tr><td>------</td><td>-----------</td><td>------</td></tr>
+<tr><td>系统架构</td><td>设计+实现</td><td>从零搭建 Flask + 小程序架构</td></tr>
+<tr><td>核心算法</td><td>集成</td><td>MTCNN/MobileFaceNet 为开源模型，AI 负责集成调用</td></tr>
+<tr><td>数据模型</td><td>设计+优化</td><td>AI 设计全局学生/班级/签到次数模型</td></tr>
+<tr><td>Web 前端</td><td>全部生成</td><td>admin.html、meeting_detail.html 等</td></tr>
+<tr><td>小程序</td><td>全部生成</td><td>7个页面全部由 AI 生成</td></tr>
+<tr><td>API 路由</td><td>全部生成</td><td>80+ 路由</td></tr>
+<tr><td>Bug 修复</td><td>全部</td><td>路径错误、编码问题、Session 去重等</td></tr>
+<tr><td>设计文档</td><td>全部生成</td><td>本文档</td></tr>
+</table>
+<br>
+<h3>5.4 AI 辅助开发流程</h3>
+<br>
+<pre>
+1. 需求分析（Claude 提问→用户回答→明确需求）
+2. 架构设计（Claude 提出方案→用户确认）
+3. 编码实现（Claude 生成代码→用户测试）
+4. Bug 修复（用户反馈→Claude 定位→修复）
+5. 文档生成（Claude 撰写→用户审阅）
+</pre>
+<br>
+<h3>5.5 关键交互统计</h3>
+<br>
+<li>总对话轮次：约 200+ 轮</li>
+<li>代码文件生成：50+ 个</li>
+<li>Bug 修复次数：20+ 次</li>
+<li>架构重构次数：3 次（单体→核心/遗留分离、路径统一、Session 机制）</li>
+<br>
+<hr>
+<br>
+<h2>6. 环境要求</h2>
+<br>
+<h3>6.1 硬件</h3>
+<li>CPU: 双核 2.0GHz+ (推荐四核)</li>
+<li>内存: 4GB+ (推荐 8GB)</li>
+<li>硬盘: 5GB+ 可用空间</li>
+<li>摄像头: 720p+ (签到台使用)</li>
+<li>手机: Android/iOS (微信小程序)</li>
+<br>
+<h3>6.2 软件</h3>
+<li>操作系统: Windows 10/11</li>
+<li>Python: 3.7.12</li>
+<li>框架: Flask 2.2.x, PyTorch 1.13.1</li>
+<li>数据库: JSON 文件系统</li>
+<li>小程序 SDK: 3.16.1+</li>
+<br>
+<h3>6.3 关键技术参数</h3>
+<br>
+<table>
+<tr><td>参数</td><td>值</td></tr>
+<tr><td>------</td><td>-----</td></tr>
+<tr><td>人脸检测</td><td>MTCNN (face_limit=50)</td></tr>
+<tr><td>人脸识别</td><td>MobileFaceNet 512维</td></tr>
+<tr><td>识别阈值</td><td>1.0 (距离)</td></tr>
+<tr><td>拍照间隔</td><td>250ms</td></tr>
+<tr><td>Web 端口</td><td>8088</td></tr>
+<tr><td>照片质量</td><td>normal (签到) / low (检测)</td></tr>
+<tr><td>TTA</td><td>开启</td></tr>
+</table>
+<br>
+<hr>
+<br>
+<h2>7. 代码包说明</h2>
+<br>
+<p>项目代码包不包含以下文件（需自行下载或生成）：</p>
+<li>`work_space/save/model_mobilefacenet.pth` (MobileFaceNet 权重)</li>
+<li>`core/mtcnn_pytorch/src/weights/*.npy` (MTCNN 权重)</li>
+<li>`venv/`, `.venv/`, `__pycache__/` (虚拟环境和缓存)</li>
+<li>`data/` 目录下的用户数据</li>
+<br>
+</body></html>

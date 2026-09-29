@@ -1,0 +1,53 @@
+<view class="page">
+  <view class="header">
+    <view class="header-left">
+      <text class="title">🧪 人脸检测测试</text>
+    </view>
+    <view class="header-right">
+      <text class="count-badge">{{faceCount}} 张脸</text>
+    </view>
+  </view>
+
+  <view class="camera-wrapper">
+    <camera
+      class="camera-preview"
+      device-position="back"
+      flash="off"
+      binderror="cameraError"
+    ></camera>
+    <canvas
+      class="face-canvas"
+      id="faceCanvas"
+      type="2d"
+    ></canvas>
+  </view>
+
+  <view class="status-bar">
+    <text class="status-text" wx:if="{{detecting}}">⏳ 检测中...</text>
+    <text class="status-text success" wx:elif="{{faceCount > 0}}">✅ 检测到 {{faceCount}} 张人脸</text>
+    <text class="status-text idle" wx:else>📷 等待检测...</text>
+  </view>
+
+  <view class="info-card">
+    <view class="info-row">
+      <text class="label">检测间隔</text>
+      <text class="value">{{detectInterval}}</text>
+    </view>
+    <view class="info-row">
+      <text class="label">最近检测</text>
+      <text class="value">{{lastDetectTime || '--'}}</text>
+    </view>
+    <view class="info-row">
+      <text class="label">累计检测次数</text>
+      <text class="value">{{totalDetects}} 次</text>
+    </view>
+    <view class="info-row">
+      <text class="label">当前最高人脸数</text>
+      <text class="value">{{maxFaces}} 张</text>
+    </view>
+  </view>
+
+  <view class="actions">
+    <button class="btn btn-outline" bindtap="goBack">← 返回</button>
+  </view>
+</view>

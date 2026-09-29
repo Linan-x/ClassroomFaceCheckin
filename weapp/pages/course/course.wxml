@@ -1,0 +1,46 @@
+<view class="page">
+  <view class="header">
+    <text class="course-name">📖 {{courseName}}</text>
+    <text class="session-name" wx:if="{{currentSessionName}}">{{currentSessionName}}</text>
+  </view>
+
+  <!-- 当前签到 -->
+  <view class="card action-card" bindtap="goCurrentCheckin" wx:if="{{hasActiveSession}}">
+    <text class="action-icon">▶️</text>
+    <view class="action-body">
+      <text class="action-title">当前签到</text>
+      <text class="action-desc">{{currentSessionName}} · {{checkedCount}}/{{totalCount}} 人已签</text>
+    </view>
+    <text class="action-arrow">继续 →</text>
+  </view>
+
+  <!-- 新建签到 -->
+  <view class="card action-card" bindtap="goNewSession">
+    <text class="action-icon">📝</text>
+    <view class="action-body">
+      <text class="action-title">新建签到</text>
+      <text class="action-desc">创建新的签到次数</text>
+    </view>
+    <text class="action-arrow">创建 →</text>
+  </view>
+
+  <!-- 签到历史 -->
+  <view class="card action-card" bindtap="goHistory">
+    <text class="action-icon">📋</text>
+    <view class="action-body">
+      <text class="action-title">签到历史</text>
+      <text class="action-desc">查看历次签到记录和结果</text>
+    </view>
+    <text class="action-arrow">查看 →</text>
+  </view>
+
+  <!-- 签到总览 -->
+  <view class="card action-card" bindtap="goOverview">
+    <text class="action-icon">📊</text>
+    <view class="action-body">
+      <text class="action-title">签到总览</text>
+      <text class="action-desc">课程全部签到统计</text>
+    </view>
+    <text class="action-arrow">查看 →</text>
+  </view>
+</view>

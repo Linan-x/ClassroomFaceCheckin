@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>摄像头诊断</title>
+    <style>
+        body { font-family: "Microsoft YaHei", sans-serif; max-width: 800px; margin: 30px auto; padding: 0 20px; background: #f5f6fa; }
+        h1 { color: #2c3e50; }
+        .card { background: #fff; border-radius: 10px; padding: 20px; margin: 16px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .card h2 { margin-top: 0; font-size: 1.1rem; }
+        .btn { display: inline-block; padding: 10px 24px; border-radius: 8px; border: none; font-size: 1rem; cursor: pointer; margin: 8px 4px; min-height: 44px; }
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-success { background: #10b981; color: #fff; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        .result { padding: 12px; border-radius: 8px; margin: 8px 0; }
+        .success { background: #d1fae5; color: #065f46; }
+        .error { background: #fee2e2; color: #991b1b; }
+        .info { background: #dbeafe; color: #1e40af; }
+        img.snapshot { max-width: 100%; border-radius: 8px; border: 2px solid #e2e8f0; margin-top: 12px; }
+        pre { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 0.85rem; }
+        .step { border-left: 4px solid #e2e8f0; padding-left: 16px; margin: 20px 0; }
+        .step.pass { border-left-color: #10b981; }
+        .step.fail { border-left-color: #ef4444; }
+        .step.waiting { border-left-color: #f59e0b; }
+    </style>
+</head>
+<body>
+    <h1>📷 摄像头诊断</h1>
+    <p>逐步排查摄像头问题 — 从简单到复杂</p>
+
+    <div class="step" id="step1">
+        <h2>步骤 1: OpenCV 版本</h2>
+        <div class="result info" id="cv-info">检查中...</div>
+    </div>
+
+    <div class="step" id="step2">
+        <h2>步骤 2: 摄像头硬件检测</h2>
+        <button class="btn btn-primary" onclick="testCamera()">检测摄像头</button>
+        <div id="camera-result"></div>
+    </div>
+
+    <div class="step" id="step3">
+        <h2>步骤 3: 单帧抓拍</h2>
+        <p>如果能显示下面的照片，说明摄像头可以正常工作</p>
+        <button class="btn btn-success" onclick="takeSnapshot()">拍摄一张</button>
+        <div id="snapshot-result"></div>
+    </div>
+
+    <div class="step" id="step4">
+        <h2>步骤 4: MJPEG 视频流</h2>
+        <p>如果能看到实时画面，说明 MJPEG 流工作正常</p>
+        <button class="btn btn-primary" onclick="startStream()">启动视频流</button>
+        <button class="btn btn-danger" onclick="stopStream()">停止</button>
+        <div>
+            <img id="stream-img" style="display:none;max-width:100%;border-radius:8px;margin-top:12px;">
+            <div id="stream-status" style="margin-top:8px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // 步骤 1: OpenCV 版本
+        document.getElementById('cv-info').textContent = 'OpenCV ' + (window.cvVersion || '已加载');
+
+        // 步骤 2: 摄像头检测
+        function testCamera() {
+            const div = document.getElementById('camera-result');
+            div.innerHTML = '<div class="result info">检测中...</div>';
+            fetch('/api/camera/test')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.success) {
+                        div.innerHTML = '<div class="result success">✅ 摄像头可用 — ' + d.message + ' | 分辨率: ' + d.resolution + '</div>';
+                        document.getElementById('step2').className = 'step pass';
+                    } else {
+                        div.innerHTML = '<div class="result error">❌ ' + d.error + '<br>提示: ' + (d.hint || '请检查摄像头驱动') + '</div>';
+                        document.getElementById('step2').className = 'step fail';
+                    }
+                })
+                .catch(e => {
+                    div.innerHTML = '<div class="result error">❌ 请求失败: ' + e.message + '</div>';
+                    document.getElementById('step2').className = 'step fail';
+                });
+        }
+
+        // 步骤 3: 单帧抓拍
+        function takeSnapshot() {
+            const div = document.getElementById('snapshot-result');
+            div.innerHTML = '<div class="result info">拍照中...</div>';
+            fetch('/api/camera/snapshot')
+                .then(r => {
+                    if (r.ok && r.headers.get('content-type') === 'image/jpeg') {
+                        return r.blob();
+                    }
+                    return r.json().then(d => { throw new Error(d.error || '拍照失败'); });
+                })
+                .then(blob => {
+                    const url = URL.createObjectURL(blob);
+                    div.innerHTML = '<div class="result success">✅ 拍照成功</div><img class="snapshot" src="' + url + '">';
+                    document.getElementById('step3').className = 'step pass';
+                })
+                .catch(e => {
+                    div.innerHTML = '<div class="result error">❌ ' + e.message + '</div>';
+                    document.getElementById('step3').className = 'step fail';
+                });
+        }
+
+        // 步骤 4: MJPEG 流
+        let streamActive = false;
+        function startStream() {
+            const img = document.getElementById('stream-img');
+            const status = document.getElementById('stream-status');
+            img.src = '/video_feed/test_meeting?t=' + Date.now();
+            img.style.display = 'block';
+            streamActive = true;
+            status.innerHTML = '<span class="result info">流已启动，如果画面不动说明 MJPEG 有问题</span>';
+            document.getElementById('step4').className = 'step waiting';
+            img.onload = function() {
+                status.innerHTML = '<span class="result success">✅ 视频流正常</span>';
+                document.getElementById('step4').className = 'step pass';
+            };
+            img.onerror = function() {
+                status.innerHTML = '<span class="result error">❌ 视频流加载失败</span>';
+                document.getElementById('step4').className = 'step fail';
+            };
+        }
+        function stopStream() {
+            document.getElementById('stream-img').src = '';
+            document.getElementById('stream-img').style.display = 'none';
+            document.getElementById('stream-status').innerHTML = '';
+            streamActive = false;
+        }
+    </script>
+</body>
+</html>
