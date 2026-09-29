@@ -22,6 +22,7 @@ Thumbs.db
 *.log
 *.out
 work_space/log/
+work_space/log
 data/tmp/
 
 # Local student and attendance data

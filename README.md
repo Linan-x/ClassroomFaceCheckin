@@ -233,3 +233,5 @@ python start_all.py
 
 - 原始模型部分：`core/model.py`、`core/Learner.py`、`core/mtcnn.py`、`core/mtcnn_pytorch/`
 - 二次开发部分：`core/course.py`、`core/checkin.py`、`core/report.py`、`checkin_web/`、`weapp/`、`start_all.py`
+
+# ClassroomFaceCheckin
