@@ -1,22 +1,11 @@
 """一键启动 — 单服务（8090端口，包含管理后台+签到台）"""
 
-import sys, os, shutil, threading, time
+import threading
+import time
 
-_PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-os.chdir(os.path.join(_PROJECT_ROOT, 'core'))  # MTCNN 权重路径基于 core/
-sys.path.insert(0, _PROJECT_ROOT)
-sys.path.insert(0, os.path.join(_PROJECT_ROOT, 'core'))
+from checkin_web.runtime import configure_runtime
 
-for dirpath, dirnames, _ in os.walk(_PROJECT_ROOT):
-    # 跳过虚拟环境目录
-    if 'venv' in dirpath or '.venv' in dirpath:
-        dirnames[:] = []
-        continue
-    if '__pycache__' in dirnames:
-        try:
-            shutil.rmtree(os.path.join(dirpath, '__pycache__'))
-        except Exception:
-            pass
+configure_runtime()
 
 PORT = 8090
 
@@ -27,11 +16,6 @@ import socketserver
 class ThreadedWSGI(socketserver.ThreadingMixIn, WSGIServer):
     daemon_threads = True
     allow_reuse_address = True
-
-# ─── 清模块缓存 ──────────────────────────────
-for key in list(sys.modules.keys()):
-    if any(x in key for x in ['checkin_web', 'app', 'kiosk', 'course', 'checkin', 'report', 'camera']):
-        del sys.modules[key]
 
 # ─── 启动统一服务（包含管理后台 + 签到台所有功能）──
 from checkin_web import app as admin_app
