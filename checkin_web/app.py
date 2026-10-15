@@ -1,22 +1,20 @@
-"""人脸识别会议签到系统 — Flask Web 应用"""
+"""人脸识别会议签到系统 — Flask Web 应用。"""
 
-import sys
 import os
 import json
 import time
 
-# 将项目根目录和 core/ 加入 path
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_DATA_ROOT = os.path.join(_PROJECT_ROOT, 'data')
-sys.path.insert(0, _PROJECT_ROOT)
-sys.path.insert(0, os.path.join(_PROJECT_ROOT, 'core'))
-# 切换到 core/ 目录（MTCNN 权重路径基于此）
-os.chdir(os.path.join(_PROJECT_ROOT, 'core'))
-
 from pathlib import Path
 from flask import (Flask, render_template, jsonify, request, send_file,
-                   Response, redirect)
+                   Response, redirect, abort)
+from werkzeug.exceptions import HTTPException
+from werkzeug.utils import secure_filename
 from flask_cors import CORS
+from checkin_web.runtime import configure_runtime
+
+_PATHS = configure_runtime()
+_PROJECT_ROOT = str(_PATHS.project_root)
+_DATA_ROOT = str(_PATHS.data_root)
 
 # 显式指定模板和静态文件路径（解决直接运行时路径不对的问题）
 _APP_ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -26,13 +24,11 @@ app = Flask(__name__,
 app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.urandom(32)
 CORS(app)
 
-from config import get_config
-from mtcnn import MTCNN
-from Learner import face_learner
 import course as meeting
 import report as report_mod
 import checkin as checkin_mod
 from checkin_web.camera import get_camera_manager, _open_camera
+from checkin_web.recognition import RecognitionService
 
 # 语音播报（可选）
 try:
@@ -40,47 +36,61 @@ try:
 except Exception:
     _say_checkin = None
 
-# 全局模型实例（懒加载）
-_models_loaded = False
-_mtcnn = None
-_learner = None
-_conf = None
+recognition = RecognitionService()
 
 
 def _get_conf():
-    global _conf
-    if _conf is None:
-        _conf = get_config(False)
-        # 修正路径为绝对路径（CWD 可能不是项目根目录）
-        _conf.work_path = Path(_PROJECT_ROOT) / 'work_space'
-        _conf.model_path = _conf.work_path / 'models'
-        _conf.save_path = _conf.work_path / 'save'
-        # 提高人脸检测上限
-        _conf.face_limit = 50
-        _conf.min_face_size = 20
-        # 识别阈值（距离越小越严格，1.0 可有效防止误签）
-        _conf.threshold = 1.0
-    return _conf
+    return recognition.get_config()
 
 
 def _load_models():
-    global _models_loaded, _mtcnn, _learner
-    if _models_loaded:
-        return _mtcnn, _learner
-    conf = _get_conf()
-    print("正在加载 MTCNN...")
-    _mtcnn = MTCNN()
-    print("正在加载人脸识别模型...")
-    _learner = face_learner(conf, inference=True)
-    _learner.threshold = conf.threshold
-    _learner.load_state(conf, 'mobilefacenet.pth', True, True)
-    _learner.model.eval()
-    _models_loaded = True
-    print("模型加载完成")
-    return _mtcnn, _learner
+    return recognition.load_models()
+
+
+@app.errorhandler(HTTPException)
+def handle_http_error(error):
+    """Return stable JSON errors for malformed or unsupported API requests."""
+    if request.path.startswith('/api/'):
+        messages = {
+            400: "请求格式错误",
+            404: "请求的资源不存在",
+            405: "不支持的请求方法",
+        }
+        return jsonify({"error": messages.get(error.code, "请求失败")}), error.code
+    return error
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(error):
+    """Keep unexpected server failures out of API responses."""
+    app.logger.exception("Unhandled request error")
+    if request.path.startswith('/api/'):
+        return jsonify({"error": "服务器内部错误"}), 500
+    return "服务器内部错误", 500
+
+
+@app.before_request
+def validate_json_api_request():
+    """Reject malformed JSON bodies before individual routes access their fields."""
+    if not request.path.startswith('/api/') or not request.is_json:
+        return
+    if request.get_json(silent=True) is None:
+        abort(400)
+    if not isinstance(request.get_json(silent=True), dict):
+        abort(400)
 
 
 # ─── 页面路由 ──────────────────────────────────────
+
+@app.route('/health')
+def health():
+    """Liveness endpoint that intentionally does not initialize recognition models."""
+    return jsonify({
+        "status": "ok",
+        "service": "classroom-face-checkin",
+        "models_loaded": recognition.models_loaded,
+    })
+
 
 @app.route('/')
 def dashboard():
@@ -210,7 +220,8 @@ def api_add_participant(name):
             # 保存到临时位置
             tmp_dir = Path(_DATA_ROOT) / 'tmp'
             tmp_dir.mkdir(exist_ok=True)
-            tmp_path = tmp_dir / photo.filename
+            suffix = Path(secure_filename(photo.filename)).suffix or '.jpg'
+            tmp_path = tmp_dir / f"upload_{__import__('uuid').uuid4().hex}{suffix}"
             photo.save(str(tmp_path))
             try:
                 result = meeting.add_participant(name, person_name, str(tmp_path))

@@ -212,6 +212,11 @@ python start_all.py
 
 > `data/` 中的学生照片、人脸库、签到记录和课程运行数据属于本地数据，默认已被 `.gitignore` 忽略，不应上传到公开仓库。
 
+服务存活检查：`GET http://localhost:8090/health`。该端点不会加载人脸识别模型，可用于部署探针。
+
+第一阶段的 API 兼容性与运行时边界见
+[`docs/API_COMPATIBILITY_BASELINE.md`](docs/API_COMPATIBILITY_BASELINE.md)。
+
 ## 项目结构
 ```
 ├── core/           # 后端核心（课程/学生/签到/特征库/MTCNN/MobileFaceNet）

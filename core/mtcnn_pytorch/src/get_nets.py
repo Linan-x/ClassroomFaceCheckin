@@ -3,6 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from collections import OrderedDict
 import numpy as np
+from pathlib import Path
+
+
+_WEIGHTS_ROOT = Path(__file__).resolve().parent / 'weights'
 
 
 class Flatten(nn.Module):
@@ -52,7 +56,7 @@ class PNet(nn.Module):
         self.conv4_1 = nn.Conv2d(32, 2, 1, 1)
         self.conv4_2 = nn.Conv2d(32, 4, 1, 1)
 
-        weights = np.load('mtcnn_pytorch/src/weights/pnet.npy',allow_pickle=True)[()]
+        weights = np.load(_WEIGHTS_ROOT / 'pnet.npy', allow_pickle=True)[()]
         for n, p in self.named_parameters():
             p.data = torch.FloatTensor(weights[n])
 
@@ -97,7 +101,7 @@ class RNet(nn.Module):
         self.conv5_1 = nn.Linear(128, 2)
         self.conv5_2 = nn.Linear(128, 4)
 
-        weights = np.load('mtcnn_pytorch/src/weights/rnet.npy',allow_pickle=True)[()]
+        weights = np.load(_WEIGHTS_ROOT / 'rnet.npy', allow_pickle=True)[()]
         for n, p in self.named_parameters():
             p.data = torch.FloatTensor(weights[n])
 
@@ -148,7 +152,7 @@ class ONet(nn.Module):
         self.conv6_2 = nn.Linear(256, 4)
         self.conv6_3 = nn.Linear(256, 10)
 
-        weights = np.load('mtcnn_pytorch/src/weights/onet.npy',allow_pickle=True)[()]
+        weights = np.load(_WEIGHTS_ROOT / 'onet.npy', allow_pickle=True)[()]
         for n, p in self.named_parameters():
             p.data = torch.FloatTensor(weights[n])
 
