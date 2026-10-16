@@ -44,6 +44,7 @@ class ServiceConfig:
 def create_app(config: ServiceConfig | None = None, store: FacebankStore | None = None) -> Flask:
     config = config or ServiceConfig.from_environment()
     app = Flask(__name__)
+    app.logger.setLevel(os.environ.get("LOG_LEVEL", "INFO").upper())
     app.config["MAX_CONTENT_LENGTH"] = config.max_request_bytes
     store = store or FacebankStore(config.facebank_root, MtcnnMobileFaceNetEngine())
 
@@ -67,7 +68,15 @@ def create_app(config: ServiceConfig | None = None, store: FacebankStore | None 
 
     @app.after_request
     def add_request_id(http_response: Response):
-        http_response.headers["X-Request-ID"] = g.get("request_id", str(uuid.uuid4()))
+        request_id = g.get("request_id", str(uuid.uuid4()))
+        http_response.headers["X-Request-ID"] = request_id
+        app.logger.info(
+            "request_completed request_id=%s method=%s path=%s status=%s",
+            request_id,
+            request.method,
+            request.path,
+            http_response.status_code,
+        )
         return http_response
 
     @app.errorhandler(RecognitionInputError)

@@ -156,3 +156,10 @@ Flask continues unchanged at port `8090`. This service neither replaces
 legacy routes nor migrates the attendance recognition/runtime flow.
 Authentication and the independent Python recognition service remain later
 phases.
+
+## Production deployment
+
+The production Compose topology, required environment values, migration
+reconciliation, backup/restore, controlled rollout, and Flask rollback
+procedures are in [`PRODUCTION_CUTOVER.md`](PRODUCTION_CUTOVER.md). Do not use
+the former local Compose defaults for a deployment.
