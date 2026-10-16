@@ -126,7 +126,7 @@ Page({
     const startTime = Date.now();
 
     wx.uploadFile({
-      url: app.globalData.serverUrl + '/api/mobile/checkin',
+      url: app.apiUrl('/api/mobile/checkin'),
       filePath: tempPath, name: 'image',
       formData: { course: that.data.courseName, session: that.sessionId },
       success(res) {
@@ -186,7 +186,7 @@ Page({
 
   loadCourseInfo() {
     const that = this;
-    var url = app.globalData.serverUrl + '/api/mobile/checkin/result?course=' + encodeURIComponent(this.data.courseName);
+    var url = app.apiUrl('/api/mobile/checkin/result?course=' + encodeURIComponent(this.data.courseName));
     if (this.sessionId) { url += '&session=' + encodeURIComponent(this.sessionId); }
     wx.request({
       url: url,
@@ -228,7 +228,7 @@ Page({
         if (res.confirm) {
           // 通知服务端结束当前签到
           wx.request({
-            url: app.globalData.serverUrl + '/api/course/' + encodeURIComponent(that.data.courseName) + '/sessions/end',
+            url: app.apiUrl('/api/course/' + encodeURIComponent(that.data.courseName) + '/sessions/end'),
             method: 'POST',
             success() {
               if (that.captureTimer) { clearInterval(that.captureTimer); that.captureTimer = null; }

@@ -15,7 +15,7 @@ Page({
     const that = this;
     this.setData({ loading: true });
     wx.request({
-      url: app.globalData.serverUrl + '/api/mobile/courses',
+      url: app.apiUrl('/api/mobile/courses'),
       success(res) {
         let courses = [];
         if (res.statusCode === 200 && res.data && res.data.courses) {

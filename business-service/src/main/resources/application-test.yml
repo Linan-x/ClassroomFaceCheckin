@@ -17,3 +17,9 @@ management:
   health:
     redis:
       enabled: false
+
+compatibility:
+  enabled: false
+
+realtime:
+  enabled: false

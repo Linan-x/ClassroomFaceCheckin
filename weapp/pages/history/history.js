@@ -17,7 +17,7 @@ Page({
   loadHistory(course) {
     const that = this;
     wx.request({
-      url: app.globalData.serverUrl + '/api/course/' + encodeURIComponent(course) + '/sessions',
+      url: app.apiUrl('/api/course/' + encodeURIComponent(course) + '/sessions'),
       success(res) {
         const sessions = res.data?.sessions || [];
         if (!sessions.length) {
@@ -28,7 +28,7 @@ Page({
         let loaded = 0;
         sessions.forEach(function(s, idx) {
           wx.request({
-            url: app.globalData.serverUrl + '/api/mobile/checkin/result?course=' + encodeURIComponent(course) + '&session=' + s.id,
+            url: app.apiUrl('/api/mobile/checkin/result?course=' + encodeURIComponent(course) + '&session=' + s.id),
             success(rr) {
               const d = rr.data || {};
               const checkedList = d.checked_list || [];

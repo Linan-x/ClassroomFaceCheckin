@@ -8,9 +8,14 @@ import com.classroomfacecheckin.business.domain.StudentRepository;
 import com.classroomfacecheckin.business.recognition.RecognitionClient;
 import com.classroomfacecheckin.business.recognition.RecognitionRejectedException;
 import com.classroomfacecheckin.business.recognition.RecognitionResult;
+import com.classroomfacecheckin.business.realtime.AttendanceEvent;
+import com.classroomfacecheckin.business.realtime.AttendanceEventPublisher;
+import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 public class AttendanceService {
@@ -19,18 +24,21 @@ public class AttendanceService {
     private final StudentRepository students;
     private final AttendanceRecordRepository records;
     private final RecognitionClient recognition;
+    private final AttendanceEventPublisher events;
 
     public AttendanceService(
             CheckinSessionRepository sessions,
             EnrollmentRepository enrollments,
             StudentRepository students,
             AttendanceRecordRepository records,
-            RecognitionClient recognition) {
+            RecognitionClient recognition,
+            AttendanceEventPublisher events) {
         this.sessions = sessions;
         this.enrollments = enrollments;
         this.students = students;
         this.records = records;
         this.recognition = recognition;
+        this.events = events;
     }
 
     @Transactional
@@ -57,11 +65,39 @@ public class AttendanceService {
         try {
             AttendanceRecord created = records.saveAndFlush(
                     new AttendanceRecord(sessionId, studentId, "RECOGNITION", result.confidence()));
+            publishAfterCommit(created);
             return AttendanceResponse.from(created, false);
         } catch (DataIntegrityViolationException exception) {
             AttendanceRecord duplicate = records.findByCheckinSessionIdAndStudentId(sessionId, studentId)
                     .orElseThrow(() -> exception);
             return AttendanceResponse.from(duplicate, true);
         }
+    }
+
+        @Transactional(readOnly = true)
+        public long countForSession(Long sessionId) {
+            return records.countByCheckinSessionId(sessionId);
+        }
+
+        @Transactional(readOnly = true)
+        public List<Long> studentIdsForSession(Long sessionId) {
+            return records.findByCheckinSessionIdOrderByCheckedInAtAsc(sessionId).stream()
+                    .map(AttendanceRecord::getStudentId)
+                    .toList();
+        }
+
+        private void publishAfterCommit(AttendanceRecord record) {
+            AttendanceEvent event = new AttendanceEvent(
+                    "attendance-recorded",
+                    record.getCheckinSessionId(),
+                    record.getStudentId(),
+                    record.getId(),
+                    record.getCheckedInAt());
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    events.publish(event);
+                }
+            });
     }
 }
