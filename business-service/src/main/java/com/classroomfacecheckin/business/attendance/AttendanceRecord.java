@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
@@ -34,5 +35,40 @@ public class AttendanceRecord {
     private Instant checkedInAt;
 
     protected AttendanceRecord() {
+    }
+
+    public AttendanceRecord(Long checkinSessionId, Long studentId, String source, double confidence) {
+        this.checkinSessionId = checkinSessionId;
+        this.studentId = studentId;
+        this.source = source;
+        this.confidence = BigDecimal.valueOf(confidence);
+        this.checkedInAt = Instant.now();
+    }
+
+    @Column(nullable = false)
+    private BigDecimal confidence;
+
+    public Long getId() {
+        return id;
+    }
+
+    public Long getCheckinSessionId() {
+        return checkinSessionId;
+    }
+
+    public Long getStudentId() {
+        return studentId;
+    }
+
+    public String getSource() {
+        return source;
+    }
+
+    public BigDecimal getConfidence() {
+        return confidence;
+    }
+
+    public Instant getCheckedInAt() {
+        return checkedInAt;
     }
 }

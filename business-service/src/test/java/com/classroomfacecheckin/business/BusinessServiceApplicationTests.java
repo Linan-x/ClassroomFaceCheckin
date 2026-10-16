@@ -23,6 +23,8 @@ import com.classroomfacecheckin.business.domain.CourseRepository;
 import com.classroomfacecheckin.business.domain.EnrollmentRepository;
 import com.classroomfacecheckin.business.domain.CheckinSessionRepository;
 import com.classroomfacecheckin.business.importer.LegacyImportRunner;
+import com.classroomfacecheckin.business.recognition.RecognitionClient;
+import com.classroomfacecheckin.business.recognition.RecognitionResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +33,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
@@ -52,6 +57,7 @@ class BusinessServiceApplicationTests {
     @Autowired private CourseRepository courses;
     @Autowired private EnrollmentRepository enrollments;
     @Autowired private CheckinSessionRepository sessions;
+    @MockBean private RecognitionClient recognitionClient;
 
     @Test
     void systemInfoUsesTheVersionedUnifiedResponse() throws Exception {
@@ -129,6 +135,39 @@ class BusinessServiceApplicationTests {
                             .contentType("application/json").content("{\"name\":\"Missing course\"}"))
                     .andExpect(status().isNotFound())
                     .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+    }
+
+    @Test
+    void recognitionAttendanceVerifiesEnrollmentAndIsIdempotent() throws Exception {
+        long classroomId = create("/api/v1/classrooms", "{\"code\":\"C-202\",\"name\":\"Class 202\"}");
+        long enrolledStudent = create("/api/v1/students",
+                "{\"studentNumber\":\"S-202\",\"fullName\":\"Student 202\",\"classroomId\":%d}".formatted(classroomId));
+        long outsider = create("/api/v1/students",
+                "{\"studentNumber\":\"S-203\",\"fullName\":\"Student 203\",\"classroomId\":%d}".formatted(classroomId));
+        long courseId = create("/api/v1/courses", "{\"code\":\"COURSE-202\",\"name\":\"Course 202\"}");
+        mockMvc.perform(put("/api/v1/courses/{courseId}/students/{studentId}", courseId, enrolledStudent))
+                .andExpect(status().isCreated());
+        long sessionId = create("/api/v1/courses/" + courseId + "/checkin-sessions", "{\"name\":\"Recognition\"}");
+        when(recognitionClient.recognize(anyString(), anyString(), anyString()))
+                .thenReturn(new RecognitionResult(enrolledStudent, 0.11));
+
+        String request = "{\"facebankId\":\"course-202-v1\",\"imageBase64\":\"aW1hZ2U=\"}";
+        mockMvc.perform(post("/api/v1/checkin-sessions/{id}/attendance/recognize", sessionId)
+                        .contentType("application/json").content(request))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.studentId").value(enrolledStudent))
+                .andExpect(jsonPath("$.data.alreadyRecorded").value(false));
+        mockMvc.perform(post("/api/v1/checkin-sessions/{id}/attendance/recognize", sessionId)
+                        .contentType("application/json").content(request))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.alreadyRecorded").value(true));
+
+        when(recognitionClient.recognize(anyString(), anyString(), anyString()))
+                .thenReturn(new RecognitionResult(outsider, 0.11));
+        mockMvc.perform(post("/api/v1/checkin-sessions/{id}/attendance/recognize", sessionId)
+                        .contentType("application/json").content(request))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.code").value("RECOGNITION_REJECTED"));
     }
 
     @Test

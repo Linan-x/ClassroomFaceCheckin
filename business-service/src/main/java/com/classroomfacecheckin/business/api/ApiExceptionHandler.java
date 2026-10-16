@@ -1,5 +1,7 @@
 package com.classroomfacecheckin.business.api;
 
+import com.classroomfacecheckin.business.recognition.RecognitionRejectedException;
+import com.classroomfacecheckin.business.recognition.RecognitionUnavailableException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -40,5 +42,17 @@ public class ApiExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleInvalidState(IllegalStateException exception) {
         return ResponseEntity.status(409)
                 .body(ApiResponse.failure("INVALID_STATE", exception.getMessage()));
+    }
+
+    @ExceptionHandler(RecognitionRejectedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRecognitionRejected(RecognitionRejectedException exception) {
+        return ResponseEntity.unprocessableEntity()
+                .body(ApiResponse.failure("RECOGNITION_REJECTED", exception.getMessage()));
+    }
+
+    @ExceptionHandler(RecognitionUnavailableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRecognitionUnavailable(RecognitionUnavailableException exception) {
+        return ResponseEntity.status(503)
+                .body(ApiResponse.failure("RECOGNITION_UNAVAILABLE", exception.getMessage()));
     }
 }
