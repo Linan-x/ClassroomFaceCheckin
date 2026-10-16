@@ -1,18 +1,9 @@
-from data.data_pipe import de_preprocess, get_train_loader, get_val_data
 from model import Backbone, Arcface, MobileFaceNet, Am_softmax, l2_norm
-from verifacation import evaluate
 import torch
-from torch import optim
 import numpy as np
-from tqdm import tqdm
-from tensorboardX import SummaryWriter
-from matplotlib import pyplot as plt
-plt.switch_backend('agg')
-from utils import get_time, gen_plot, hflip_batch, separate_bn_paras
 from PIL import Image
 from torchvision import transforms as trans
 import math
-import bcolz
 
 class face_learner(object):
     def __init__(self, conf, inference=False):
@@ -25,6 +16,11 @@ class face_learner(object):
             print('{}_{} model generated'.format(conf.net_mode, conf.net_depth))
         
         if not inference:
+            from data.data_pipe import get_train_loader, get_val_data
+            from tensorboardX import SummaryWriter
+            from torch import optim
+            from utils import separate_bn_paras
+
             self.milestones = conf.milestones
             self.loader, self.class_num = get_train_loader(conf)        
 
@@ -59,6 +55,8 @@ class face_learner(object):
             self.threshold = conf.threshold
     
     def save_state(self, conf, accuracy, to_save_folder=False, extra=None, model_only=False):
+        from utils import get_time
+
         if to_save_folder:
             save_path = conf.save_path
         else:
@@ -94,6 +92,9 @@ class face_learner(object):
 #         self.writer.add_scalar('{}_far:False Acceptance Ratio'.format(db_name), far, self.step)
         
     def evaluate(self, conf, carray, issame, nrof_folds = 5, tta = False):
+        from utils import gen_plot, hflip_batch
+        from verifacation import evaluate
+
         self.model.eval()
         idx = 0
         embeddings = np.zeros([len(carray), conf.embedding_size])
@@ -128,6 +129,8 @@ class face_learner(object):
                 beta=0.98,
                 bloding_scale=3.,
                 num=None):
+        from tqdm import tqdm
+
         if not num:
             num = len(self.loader)
         mult = (final_value / init_value)**(1 / num)
@@ -183,6 +186,8 @@ class face_learner(object):
                 return log_lrs, losses    
 
     def train(self, conf, epochs):
+        from tqdm import tqdm
+
         self.model.train()
         running_loss = 0.            
         for e in range(epochs):
