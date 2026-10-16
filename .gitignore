@@ -21,6 +21,8 @@ Thumbs.db
 # Runtime-generated data and logs
 *.log
 *.out
+business-service/target/
+business-service/.env
 work_space/log/
 work_space/log
 data/tmp/

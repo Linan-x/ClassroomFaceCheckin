@@ -1,0 +1,12 @@
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/classroom_face_checkin?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC}
+  jpa:
+    show-sql: ${JPA_SHOW_SQL:false}
+
+logging:
+  level:
+    org.hibernate.SQL: ${HIBERNATE_SQL_LOG_LEVEL:WARN}

@@ -217,11 +217,21 @@ python start_all.py
 第一阶段的 API 兼容性与运行时边界见
 [`docs/API_COMPATIBILITY_BASELINE.md`](docs/API_COMPATIBILITY_BASELINE.md)。
 
+## Java business-service foundation
+
+The independent Java 21 / Spring Boot 3 foundation is under
+[`business-service/`](business-service/). It runs on port `8081` with MySQL 8
+and Redis development dependencies while the legacy Flask service continues
+unchanged on port `8090`. See
+[`docs/JAVA_BUSINESS_SERVICE.md`](docs/JAVA_BUSINESS_SERVICE.md) for setup,
+environment variables, health probes, and the phase boundary.
+
 ## 项目结构
 ```
 ├── core/           # 后端核心（课程/学生/签到/特征库/MTCNN/MobileFaceNet）
 ├── checkin_web/    # Flask Web 服务（80+路由）
 ├── weapp/          # 微信小程序（7个页面）
+├── business-service/# 独立 Java Spring Boot 业务服务基础
 ├── data/           # 数据存储
 ├── work_space/     # 模型与运行工作目录
 ├── docs/           # 设计文档、实验 notebook、历史归档
