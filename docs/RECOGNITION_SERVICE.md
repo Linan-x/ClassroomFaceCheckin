@@ -15,8 +15,9 @@ component that turns a recognition result into an attendance write.
 | MySQL | `mysql:3306` inside Compose | Authoritative course, enrollment, and attendance state |
 | Redis | `redis:6379` inside Compose | Optional short-lived assistance only; never attendance authority |
 
-Do not expose port 8090 publicly. The Compose file uses `expose`, rather than
-`ports`, for that reason.
+Do not expose port 8090 publicly. MySQL, Redis, and the recognition service are
+all Compose-internal services; the Compose file does not bind their ports to the
+host. This avoids collisions with a locally installed MySQL or Redis instance.
 
 ## Authentication and configuration
 
