@@ -1,8 +1,9 @@
 # Flask API Compatibility Baseline
 
-This document records the public Flask behavior preserved during phase one of
-the Java business-service migration. The Python/Flask application remains the
-system of record; no Java service is introduced by this phase.
+This document records the public Flask behavior preserved during the staged
+Java business-service migration. The Python/Flask application remains the
+system of record for its existing routes; no Flask endpoint is replaced in
+this phase.
 
 ## Runtime contract
 
@@ -37,3 +38,21 @@ system of record; no Java service is introduced by this phase.
   process-local model instances as before.
 - This is a compatibility baseline, not an authentication, authorization, or
   database migration. Those concerns remain for later phases.
+
+## Phase-three additive Java mapping
+
+The Spring service adds a separate, versioned API on port `8081`; it does not
+proxy or alter any Flask route. Legacy concepts map as follows:
+
+| Legacy JSON/file concept | Additive Java API/database concept | Limitation |
+| --- | --- | --- |
+| `data/classes.json` | `classrooms` / `/api/v1/classrooms` | Names become stable imported keys and generated codes. |
+| `data/students_index.json` | `students` / `/api/v1/students` | Name-based legacy identities are ambiguous where duplicate names existed. |
+| `data/courses/*/meeting_info.json` | `courses` / `/api/v1/courses` and course/class links | Legacy directory names become import keys. |
+| Student `courses` lists | `enrollments` | Only students present in the global index can be enrolled. |
+| `sessions.json` | `checkin_sessions` | The active session is `ACTIVE`; older sessions import as `ENDED`. |
+| Local image paths | `student_photos.storage_uri` metadata | References are non-public; no files or biometric data are copied or served. |
+
+Legacy attendance JSON, facebanks, vector embeddings, Flask attendance
+execution, and mobile recognition payloads remain exclusively in the Python
+runtime for the next phase.
