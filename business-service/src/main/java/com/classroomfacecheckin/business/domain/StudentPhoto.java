@@ -8,7 +8,7 @@ import java.time.Instant;
 public class StudentPhoto {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY) private Long id;
     @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "student_id", nullable = false) private Student student;
-    @Column(name = "storage_uri", nullable = false, length = 1024) private String storageUri;
+    @Column(name = "storage_uri", nullable = false, length = 512) private String storageUri;
     @Column(name = "content_hash", length = 128) private String contentHash;
     @Column(name = "is_primary", nullable = false) private boolean primary;
     @Column(name = "created_at", nullable = false) private Instant createdAt = Instant.now();

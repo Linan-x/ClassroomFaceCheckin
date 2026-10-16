@@ -10,7 +10,7 @@ import java.util.List;
 record ClassroomRequest(@NotBlank @Size(max = 64) String code, @NotBlank @Size(max = 128) String name, @Size(max = 500) String description) {}
 record StudentRequest(@NotBlank @Size(max = 64) String studentNumber, @NotBlank @Size(max = 128) String fullName, Long classroomId, @Size(max = 64) String phone) {}
 record CourseRequest(@NotBlank @Size(max = 64) String code, @NotBlank @Size(max = 128) String name, @Size(max = 500) String description) {}
-record PhotoMetadataRequest(@NotBlank @Size(max = 1024) @Pattern(regexp = "^(legacy|storage)://.*$", message = "storageUri must use a non-public legacy:// or storage:// reference") String storageUri, @Size(max = 128) String contentHash, boolean primary) {}
+record PhotoMetadataRequest(@NotBlank @Size(max = 512) @Pattern(regexp = "^(legacy|storage)://.*$", message = "storageUri must use a non-public legacy:// or storage:// reference") String storageUri, @Size(max = 128) String contentHash, boolean primary) {}
 record IdsRequest(@NotNull List<Long> ids) {}
 record SessionRequest(@NotBlank @Size(max = 128) String name, Instant startsAt) {}
 record ClassroomDto(Long id, String code, String name, String description) {}
