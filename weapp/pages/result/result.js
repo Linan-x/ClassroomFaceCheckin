@@ -29,7 +29,7 @@ Page({
 
   loadResult(course, session) {
     const that = this;
-    let url = app.globalData.serverUrl + '/api/mobile/checkin/result?course=' +
+    let url = app.apiUrl('/api/mobile/checkin/result?course=' +
               encodeURIComponent(course);
     if (session) {
       url += '&session=' + encodeURIComponent(session);

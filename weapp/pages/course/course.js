@@ -25,7 +25,7 @@ Page({
     const name = this.data.courseName;
     // 加载签到次数和活跃session
     wx.request({
-      url: app.globalData.serverUrl + '/api/course/' + encodeURIComponent(name) + '/sessions',
+      url: app.apiUrl('/api/course/' + encodeURIComponent(name) + '/sessions'),
       success: (res) => {
         const sessions = res.data?.sessions || [];
         const activeId = res.data?.active;
@@ -38,7 +38,7 @@ Page({
             });
             // 加载签到结果
             wx.request({
-              url: app.globalData.serverUrl + '/api/mobile/checkin/result?course=' + encodeURIComponent(name),
+              url: app.apiUrl('/api/mobile/checkin/result?course=' + encodeURIComponent(name)),
               success: (r2) => {
                 if (r2.data) {
                   this.setData({
@@ -58,7 +58,7 @@ Page({
   goCurrentCheckin() {
     const name = this.data.courseName;
     wx.request({
-      url: app.globalData.serverUrl + '/api/course/' + encodeURIComponent(name) + '/sessions',
+      url: app.apiUrl('/api/course/' + encodeURIComponent(name) + '/sessions'),
       success: (res) => {
         const activeId = res.data?.active;
         const sessions = res.data?.sessions || [];
@@ -81,7 +81,7 @@ Page({
     const that = this;
     // 先获取现有次数
     wx.request({
-      url: app.globalData.serverUrl + '/api/course/' + encodeURIComponent(name) + '/sessions',
+      url: app.apiUrl('/api/course/' + encodeURIComponent(name) + '/sessions'),
       success(res) {
         const count = (res.data?.sessions || []).length + 1;
         wx.showModal({
@@ -93,7 +93,7 @@ Page({
             const sname = modal.confirm && modal.content ? modal.content.trim() : '第' + count + '次签到';
             wx.showLoading({ title: '创建中...' });
             wx.request({
-              url: app.globalData.serverUrl + '/api/course/' + encodeURIComponent(name) + '/sessions',
+              url: app.apiUrl('/api/course/' + encodeURIComponent(name) + '/sessions'),
               method: 'POST',
               header: { 'Content-Type': 'application/json' },
               data: { name: sname },

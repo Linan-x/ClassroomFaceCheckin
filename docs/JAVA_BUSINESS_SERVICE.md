@@ -8,6 +8,58 @@ The Flask service remains available at `http://localhost:8090` when started
 with `python start_all.py`. Its JSON files, photos, facebanks, model assets,
 and routes are not read or modified by the Java service.
 
+## Phase 5 compatibility and realtime rollout
+
+The Java adapter is **additive and disabled by default**. It preserves Flask
+routes and is intended only for a controlled, per-client migration after the
+legacy `data/` import has completed. When enabled, it exposes the active
+mini-program surfaces beneath `/api/compat`:
+
+| Legacy shape | Compatibility route | Notes |
+| --- | --- | --- |
+| `GET /api/mobile/courses` | `GET /api/compat/mobile/courses` | Keeps `name`, progress counts, and rate fields. |
+| `/api/course/{name}/sessions` | `/api/compat/course/{name}/sessions` | Course names are resolved once at the boundary through imported legacy keys; business logic uses numeric IDs. |
+| `POST /api/mobile/checkin` | `POST /api/compat/mobile/checkin` | Multipart `course`, optional `session`, and `image`; delegates to the transactional Java attendance service and the isolated recognition service. |
+| `GET /api/mobile/checkin/result` | `GET /api/compat/mobile/checkin/result` | Keeps the legacy result envelope. Newer Java-only session IDs are returned as `java-{id}`. |
+
+Enable it only after setting all of the following environment variables:
+
+```powershell
+$env:COMPATIBILITY_ENABLED = "true"
+$env:COMPAT_FACEBANK_ID_TEMPLATE = "course-%d-v1"
+$env:COMPAT_MAX_IMAGE_BYTES = "5000000"
+$env:COMPAT_CHECKINS_PER_MINUTE = "30"
+$env:REALTIME_ENABLED = "true"
+$env:REALTIME_MAX_EVENTS_PER_SESSION = "200"
+$env:DASHBOARD_TOKEN = "replace-with-a-long-random-secret"
+```
+
+`COMPAT_FACEBANK_ID_TEMPLATE` must name facebanks that resolve to Java student
+IDs in the recognition service. The adapter accepts JPEG/PNG uploads only,
+rejects bodies above `COMPAT_MAX_IMAGE_BYTES`, and uses Redis to rate-limit
+check-ins per client address. Redis failure is surfaced rather than bypassed.
+
+Successful, newly-created attendance rows publish an `attendance-recorded`
+event only after their transaction commits. Redis retains at most
+`REALTIME_MAX_EVENTS_PER_SESSION` JSON events per session and fans out live
+events through Redis pub/sub, so dashboard SSE connections can be served by
+any Java instance. A dashboard can open
+`GET /api/v1/checkin-sessions/{id}/events?token=...` as an SSE stream; the
+endpoint requires the configured dashboard token and replays that bounded
+backlog before streaming live events. Duplicate attendance responses do not
+create an event.
+
+To migrate one mini-program build, set `compatibilityMode: true` and
+`compatibilityServerUrl` to the Spring service in `weapp/app.js` (or inject
+the same values in its build configuration). The committed defaults remain
+`false` and empty, so production clients keep their Flask URL. Validate course
+list, session creation, recognition, results, and dashboard events for one
+course before increasing adoption.
+
+**Rollback:** set `compatibilityMode` back to `false`, or set
+`COMPATIBILITY_ENABLED=false` and redeploy Java. Flask endpoints and legacy
+data are untouched, so clients immediately resume the existing behavior.
+
 ## Development prerequisites
 
 - JDK 21

@@ -29,6 +29,8 @@ server:
   port: ${SERVER_PORT:8081}
   shutdown: graceful
   max-http-request-header-size: 16KB
+  tomcat:
+    max-http-form-post-size: ${COMPAT_MAX_IMAGE_BYTES:5000000}
 
 recognition:
   enabled: ${RECOGNITION_ENABLED:false}
@@ -36,6 +38,17 @@ recognition:
   shared-token: ${RECOGNITION_SHARED_TOKEN:}
   connect-timeout-ms: ${RECOGNITION_CONNECT_TIMEOUT_MS:1000}
   read-timeout-ms: ${RECOGNITION_READ_TIMEOUT_MS:5000}
+
+compatibility:
+  enabled: ${COMPATIBILITY_ENABLED:false}
+  max-image-bytes: ${COMPAT_MAX_IMAGE_BYTES:5000000}
+  checkins-per-minute: ${COMPAT_CHECKINS_PER_MINUTE:30}
+  facebank-id-template: ${COMPAT_FACEBANK_ID_TEMPLATE:course-%d-v1}
+
+realtime:
+  enabled: ${REALTIME_ENABLED:false}
+  max-events-per-session: ${REALTIME_MAX_EVENTS_PER_SESSION:200}
+  dashboard-token: ${DASHBOARD_TOKEN:}
 
 management:
   endpoint:

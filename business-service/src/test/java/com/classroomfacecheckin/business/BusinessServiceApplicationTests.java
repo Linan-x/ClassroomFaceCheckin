@@ -25,6 +25,10 @@ import com.classroomfacecheckin.business.domain.CheckinSessionRepository;
 import com.classroomfacecheckin.business.importer.LegacyImportRunner;
 import com.classroomfacecheckin.business.recognition.RecognitionClient;
 import com.classroomfacecheckin.business.recognition.RecognitionResult;
+import com.classroomfacecheckin.business.realtime.AttendanceEvent;
+import com.classroomfacecheckin.business.realtime.AttendanceEventPublisher;
+import com.classroomfacecheckin.business.realtime.AttendanceSseController;
+import com.classroomfacecheckin.business.realtime.RealtimeProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,11 +39,14 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
-@SpringBootTest
+@SpringBootTest(properties = "compatibility.enabled=true")
 class BusinessServiceApplicationTests {
 
     @Autowired
@@ -58,6 +65,7 @@ class BusinessServiceApplicationTests {
     @Autowired private EnrollmentRepository enrollments;
     @Autowired private CheckinSessionRepository sessions;
     @MockBean private RecognitionClient recognitionClient;
+    @MockBean private AttendanceEventPublisher eventPublisher;
 
     @Test
     void systemInfoUsesTheVersionedUnifiedResponse() throws Exception {
@@ -161,6 +169,7 @@ class BusinessServiceApplicationTests {
                         .contentType("application/json").content(request))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.alreadyRecorded").value(true));
+        verify(eventPublisher, times(1)).publish(any(AttendanceEvent.class));
 
         when(recognitionClient.recognize(anyString(), anyString(), anyString()))
                 .thenReturn(new RecognitionResult(outsider, 0.11));
@@ -198,6 +207,29 @@ class BusinessServiceApplicationTests {
         runner.importData(root, false);
         assertThat(enrollments.count()).isEqualTo(enrollmentCount);
         assertThat(sessions.count()).isEqualTo(sessionCount);
+
+        mockMvc.perform(get("/api/compat/mobile/courses"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.courses[?(@.name == 'legacy-course')].total").value(1));
+        mockMvc.perform(get("/api/compat/course/legacy-course/sessions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value("1"))
+                .andExpect(jsonPath("$.sessions[0].name").value("First"));
+    }
+
+    @Test
+    void dashboardSseReadsBoundedBacklogAndSubscribes() {
+        AttendanceEvent event = new AttendanceEvent(
+                "attendance-recorded", 42L, 7L, 9L, java.time.Instant.parse("2026-01-01T00:00:00Z"));
+        when(eventPublisher.recent(42L)).thenReturn(java.util.List.of(event));
+        when(eventPublisher.subscribe(any(), any())).thenReturn(() -> { });
+
+        AttendanceSseController controller = new AttendanceSseController(
+                eventPublisher, new RealtimeProperties(true, 10, "dashboard-token"));
+
+        assertThat(controller.events(42L, "dashboard-token", null)).isNotNull();
+        verify(eventPublisher).recent(42L);
+        verify(eventPublisher).subscribe(any(), any());
     }
 
     private long create(String endpoint, String payload) throws Exception {
