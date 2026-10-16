@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.sql.Connection;
@@ -23,6 +24,7 @@ import com.classroomfacecheckin.business.domain.CourseRepository;
 import com.classroomfacecheckin.business.domain.EnrollmentRepository;
 import com.classroomfacecheckin.business.domain.CheckinSessionRepository;
 import com.classroomfacecheckin.business.importer.LegacyImportRunner;
+import com.classroomfacecheckin.business.importer.LegacyMigrationVerifier;
 import com.classroomfacecheckin.business.recognition.RecognitionClient;
 import com.classroomfacecheckin.business.recognition.RecognitionResult;
 import com.classroomfacecheckin.business.realtime.AttendanceEvent;
@@ -71,6 +73,7 @@ class BusinessServiceApplicationTests {
     void systemInfoUsesTheVersionedUnifiedResponse() throws Exception {
         mockMvc.perform(get("/api/v1/system/info"))
                 .andExpect(status().isOk())
+                .andExpect(header().exists("X-Request-ID"))
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.service").value("classroom-face-checkin-business-service"))
                 .andExpect(jsonPath("$.data.version").value("v1"))
@@ -207,6 +210,14 @@ class BusinessServiceApplicationTests {
         runner.importData(root, false);
         assertThat(enrollments.count()).isEqualTo(enrollmentCount);
         assertThat(sessions.count()).isEqualTo(sessionCount);
+        String verification = new LegacyMigrationVerifier(
+                objectMapper, classrooms, students, courses, sessions).verify(root).render();
+        assertThat(verification)
+                .contains("classrooms source=1 imported=1 status=MATCH")
+                .contains("students source=1 imported=1 status=MATCH")
+                .contains("courses source=1 imported=1 status=MATCH")
+                .contains("sessions source=1 imported=1 status=MATCH")
+                .contains("attendance source=0 imported=UNSUPPORTED status=NOT_MIGRATED");
 
         mockMvc.perform(get("/api/compat/mobile/courses"))
                 .andExpect(status().isOk())

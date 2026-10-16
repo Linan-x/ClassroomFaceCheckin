@@ -231,6 +231,10 @@ unchanged on port `8090`. See
 [`docs/JAVA_BUSINESS_SERVICE.md`](docs/JAVA_BUSINESS_SERVICE.md) for setup,
 environment variables, health probes, and the phase boundary.
 
+For the production Spring/MySQL/Redis/recognition/Nginx deployment and the
+safe Flask rollback procedure, follow
+[`docs/PRODUCTION_CUTOVER.md`](docs/PRODUCTION_CUTOVER.md).
+
 ## 项目结构
 ```
 ├── core/           # 后端核心（课程/学生/签到/特征库/MTCNN/MobileFaceNet）

@@ -1,69 +1,170 @@
 services:
   mysql:
     image: mysql:8.4
+    restart: unless-stopped
     environment:
-      MYSQL_DATABASE: classroom_face_checkin
-      MYSQL_USER: classroom
-      MYSQL_PASSWORD: change-me
-      MYSQL_ROOT_PASSWORD: local-root-only
-    ports:
-      - "3306:3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-plocal-root-only"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.0"
+    networks: [private]
 
   redis:
     image: redis:7.4-alpine
-    ports:
-      - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes"]
+    restart: unless-stopped
+    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.50"
+    networks: [private]
 
   recognition-service:
     build:
       context: ..
       dockerfile: recognition_service/Dockerfile
+    restart: unless-stopped
     environment:
-      RECOGNITION_SHARED_TOKEN: ${RECOGNITION_SHARED_TOKEN:?Set RECOGNITION_SHARED_TOKEN before starting services}
+      RECOGNITION_SHARED_TOKEN: ${RECOGNITION_SHARED_TOKEN:?Set RECOGNITION_SHARED_TOKEN}
       RECOGNITION_FACEBANK_ROOT: /var/lib/recognition/facebanks
-    expose:
-      - "8090"
+      LOG_LEVEL: ${RECOGNITION_LOG_LEVEL:-INFO}
+    expose: ["8090"]
     volumes:
       - recognition-facebanks:/var/lib/recognition
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 45s
+    deploy:
+      resources:
+        limits:
+          memory: ${RECOGNITION_MEMORY_LIMIT:-4g}
+          cpus: ${RECOGNITION_CPU_LIMIT:-2.0}
+    networks: [private]
 
   business-service:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     environment:
-      DB_URL: jdbc:mysql://mysql:3306/classroom_face_checkin?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
-      DB_USERNAME: classroom
-      DB_PASSWORD: change-me
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:?Set MYSQL_DATABASE}?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+      DB_USERNAME: ${MYSQL_USER:?Set MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}
       REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
       RECOGNITION_ENABLED: "true"
       RECOGNITION_BASE_URL: http://recognition-service:8090
-      RECOGNITION_SHARED_TOKEN: ${RECOGNITION_SHARED_TOKEN:?Set RECOGNITION_SHARED_TOKEN before starting services}
-    ports:
-      - "8081:8081"
+      RECOGNITION_SHARED_TOKEN: ${RECOGNITION_SHARED_TOKEN:?Set RECOGNITION_SHARED_TOKEN}
+      COMPATIBILITY_ENABLED: ${COMPATIBILITY_ENABLED:-false}
+      COMPAT_FACEBANK_ID_TEMPLATE: ${COMPAT_FACEBANK_ID_TEMPLATE:-course-%d-v1}
+      COMPAT_MAX_IMAGE_BYTES: ${COMPAT_MAX_IMAGE_BYTES:-5000000}
+      COMPAT_CHECKINS_PER_MINUTE: ${COMPAT_CHECKINS_PER_MINUTE:-30}
+      REALTIME_ENABLED: ${REALTIME_ENABLED:-false}
+      REALTIME_MAX_EVENTS_PER_SESSION: ${REALTIME_MAX_EVENTS_PER_SESSION:-200}
+      DASHBOARD_TOKEN: ${DASHBOARD_TOKEN:?Set DASHBOARD_TOKEN}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=70.0 -Djava.security.egd=file:/dev/./urandom}
+    expose: ["8081"]
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
       recognition-service:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8081/actuator/health/readiness > /dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    stop_grace_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "1.0"
+    networks: [private]
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    environment:
+      SERVER_NAME: ${SERVER_NAME:?Set SERVER_NAME}
+      PUBLIC_UPSTREAM: ${PUBLIC_UPSTREAM:-business-service:8081}
+    ports:
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ${TLS_CERT_PATH:?Set TLS_CERT_PATH}:/etc/nginx/tls/tls.crt:ro
+      - ${TLS_KEY_PATH:?Set TLS_KEY_PATH}:/etc/nginx/tls/tls.key:ro
+    depends_on:
+      business-service:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /etc/nginx/conf.d
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+    deploy:
+      resources:
+        limits:
+          memory: 128m
+          cpus: "0.25"
+    networks: [private, public]
+
+  legacy-flask:
+    image: ${LEGACY_FLASK_IMAGE:-classroom-face-checkin-legacy:local}
+    profiles: ["rollback"]
+    restart: unless-stopped
+    environment:
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:?Set FLASK_SECRET_KEY}
+    volumes:
+      - ${LEGACY_DATA_PATH:-../data}:/app/data
+      - ${LEGACY_WORKSPACE_PATH:-../work_space}:/app/work_space
+    expose: ["8090"]
+    networks: [private]
 
 volumes:
   mysql-data:
   redis-data:
   recognition-facebanks:
+
+networks:
+  private:
+    internal: true
+  public:

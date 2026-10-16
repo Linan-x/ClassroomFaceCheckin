@@ -1,0 +1,11 @@
+<configuration>
+    <springProperty name="LOG_LEVEL" source="LOG_LEVEL" defaultValue="INFO"/>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>timestamp=%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} level=%level logger=%logger{36} request_id=%X{requestId:-} message="%msg"%n</pattern>
+        </encoder>
+    </appender>
+    <root level="${LOG_LEVEL}">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

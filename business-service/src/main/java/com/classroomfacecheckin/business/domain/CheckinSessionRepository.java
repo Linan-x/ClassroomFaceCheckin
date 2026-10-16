@@ -5,4 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface CheckinSessionRepository extends JpaRepository<CheckinSession, Long> {
     Optional<CheckinSession> findByLegacyKey(String legacyKey);
     List<CheckinSession> findByCourseIdOrderByStartsAtDesc(Long courseId);
+    long countByLegacyKeyStartingWith(String prefix);
 }
