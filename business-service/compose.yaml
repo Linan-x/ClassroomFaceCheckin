@@ -29,6 +29,41 @@ services:
       timeout: 3s
       retries: 20
 
+  recognition-service:
+    build:
+      context: ..
+      dockerfile: recognition_service/Dockerfile
+    environment:
+      RECOGNITION_SHARED_TOKEN: ${RECOGNITION_SHARED_TOKEN:?Set RECOGNITION_SHARED_TOKEN before starting services}
+      RECOGNITION_FACEBANK_ROOT: /var/lib/recognition/facebanks
+    expose:
+      - "8090"
+    volumes:
+      - recognition-facebanks:/var/lib/recognition
+
+  business-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/classroom_face_checkin?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+      DB_USERNAME: classroom
+      DB_PASSWORD: change-me
+      REDIS_HOST: redis
+      RECOGNITION_ENABLED: "true"
+      RECOGNITION_BASE_URL: http://recognition-service:8090
+      RECOGNITION_SHARED_TOKEN: ${RECOGNITION_SHARED_TOKEN:?Set RECOGNITION_SHARED_TOKEN before starting services}
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      recognition-service:
+        condition: service_started
+
 volumes:
   mysql-data:
   redis-data:
+  recognition-facebanks:

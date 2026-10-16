@@ -166,6 +166,11 @@ python train.py -b [batch_size] -lr [learning rate] -e [epochs]
 
 # 人脸识别签到系统 — 启动说明
 
+The legacy Flask application remains available while the backend migration is in
+progress. The Phase 4 internal Python recognition service and the Spring Boot
+transactional attendance boundary are documented in
+[docs/RECOGNITION_SERVICE.md](docs/RECOGNITION_SERVICE.md). — 启动说明
+
 基于 InsightFace_Pytorch 构建的课堂/会议签到系统，支持 Web 管理后台 + 微信小程序。
 
 ## 环境配置

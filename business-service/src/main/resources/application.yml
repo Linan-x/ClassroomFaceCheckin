@@ -28,6 +28,14 @@ spring:
 server:
   port: ${SERVER_PORT:8081}
   shutdown: graceful
+  max-http-request-header-size: 16KB
+
+recognition:
+  enabled: ${RECOGNITION_ENABLED:false}
+  base-url: ${RECOGNITION_BASE_URL:http://localhost:8090}
+  shared-token: ${RECOGNITION_SHARED_TOKEN:}
+  connect-timeout-ms: ${RECOGNITION_CONNECT_TIMEOUT_MS:1000}
+  read-timeout-ms: ${RECOGNITION_READ_TIMEOUT_MS:5000}
 
 management:
   endpoint:
